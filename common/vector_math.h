@@ -133,7 +133,7 @@ inline PHYSICS vec3 make_unit_vec(real cos_theta, real phi)
 {
 	real sin_phi, cos_phi;
 	sincosr(phi, &sin_phi, &cos_phi);
-	
+
 	cos_theta = clampr(cos_theta, -1, 1);
 	const real sin_theta = sqrtf(1 - cos_theta*cos_theta);
 	return vec3 {

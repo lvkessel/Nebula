@@ -11,7 +11,7 @@ git submodule update
 
 Via a web browser, without git installed:
 * Download the [zip file](https://github.com/lvkessel/nebula/archive/master.zip) from github.
-* Download nvidia's [cub](https://nvlabs.github.io/cub/download_cub.html) library, and place it in the `3rdparty/cub/` folder. (So there is a `3rdparty/cub/cub/cub.h` file).
+* Download nvidia's [cub](https://nvlabs.github.io/cub/download_cub.html) library, and place it in the `3rdparty/cub/` folder. (So there is a `3rdparty/cub/cub/cub.cuh` file).
 
 ## Compiling
 There are three main programs at the moment:

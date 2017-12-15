@@ -62,7 +62,7 @@ inline PHYSICS real clampr(real i, real low, real high) { return i < low ? low :
 	inline HOST real sinr(real x) { return std::sin(x); }
 	inline HOST real cosr(real x) { return std::cos(x); }
 	inline HOST real atan2r(real y, real x) { return std::atan2(y, x); }
-	
+
 	inline HOST void sincosr(real x, real* sin_ptr, real* cos_ptr)
 	{
 		// TODO: try using sin^2(x) + cos^2(x) = 1,

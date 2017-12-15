@@ -50,7 +50,7 @@ public:
 		// draw a random total energy loss for the primary electron
 		real omega;
 		{// see thesis T.V. Eq. 3.85.
-			real omega_max = 0.5*(this_particle.kin_energy + omega0 - _fermi); // upper limit of eq. 9 in Ashley, but corrected for the fermi energy
+			real omega_max = 0.5_r*(this_particle.kin_energy + omega0 - _fermi); // upper limit of eq. 9 in Ashley, but corrected for the fermi energy
 			real omega_min = omega0;
 			real w0 = minr(omega0 - 1, maxr(0, binding) - _fermi);
 			if (this_particle.kin_energy > 2*omega0)
