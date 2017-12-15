@@ -15,7 +15,7 @@
  *   PHYSICS void execute_event(particle&) const;
  */
 
-#include "tuple.h"
+#include "../common/tuple.h"
 #include "events.h"
 #include "particle.h"
 
@@ -30,7 +30,7 @@ public:
 	{}
 
 	template <size_t I>
-	using type_at_index = typename nbl::tuple::type_at_index<I, scatter_types...>::type;
+	using type_at_index = typename nbl::type_at_index<I, scatter_types...>;
 
 	static constexpr size_t size() { return sizeof...(scatter_types); }
 
