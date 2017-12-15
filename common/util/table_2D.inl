@@ -3,13 +3,15 @@
 namespace nbl { namespace util {
 
 template<typename T, bool gpu_flag>
-HOST table_2D<T, gpu_flag> table_2D<T, gpu_flag>::create(T* data,
+HOST table_2D<T, gpu_flag> table_2D<T, gpu_flag>::create(
 	real x_min, real x_max, size_t width,
-	real y_min, real y_max, size_t height)
+	real y_min, real y_max, size_t height,
+	T* data)
 {
 	table_2D<T, gpu_flag> table;
 	_table_2D_factory<T, gpu_flag>::allocate(table, width, height);
-	_table_2D_factory<T, gpu_flag>::set(table, data);
+	if (data != nullptr)
+		_table_2D_factory<T, gpu_flag>::set(table, data);
 
 	table._x_min = x_min;
 	table._x_step = (width - 1) / (x_max - x_min);
@@ -22,6 +24,13 @@ template<typename T, bool gpu_flag>
 HOST void table_2D<T, gpu_flag>::destroy(table_2D<T, gpu_flag> & table)
 {
 	_table_2D_factory<T, gpu_flag>::free(table);
+}
+
+template<typename T, bool gpu_flag>
+template<typename callback_function>
+HOST void table_2D<T, gpu_flag>::mem_scope(callback_function callback)
+{
+	_table_2D_factory<T, gpu_flag>::mem_scope(*this, callback);
 }
 
 template<typename T, bool gpu_flag>
@@ -95,6 +104,19 @@ struct _table_2D_factory<T, false>
 		memcpy(table._data, data, table._width * table._height * sizeof(T));
 	}
 
+	template<typename callback_function>
+	inline static HOST void mem_scope(table_2D<T, false> & table, callback_function callback)
+	{
+		// Make indirect array
+		T** host_pp = new T*[table._height];
+		for (size_t y = 0; y < table._height; ++y)
+			host_pp[y] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(table._data) + y * table._pitch);
+
+		callback(host_pp);
+
+		delete[] host_pp;
+	}
+
 	inline static HOST void free(table_2D<T, false> & table)
 	{
 		delete[] table._data;
@@ -127,6 +149,12 @@ struct _table_2D_factory<T, true>
 					for (size_t x = 0; x < width; ++x)
 						device[y][x] = data[y*width + x];
 			});
+	}
+
+	template<typename callback_function>
+	inline static HOST void mem_scope(table_2D<T, true> & table, callback_function callback)
+	{
+		cuda::cuda_mem_scope_2D<T>(table._data, table._pitch, table._width, table._height, callback);
 	}
 
 	inline static HOST void free(table_2D<T, true> & table)

@@ -195,34 +195,88 @@ public:
 		/*
 		 * Set IMFP table
 		 */
-		std::vector<real> imfp_vector(K_cnt, 0);
-		for (int x = 0; x < K_cnt; ++x)
+		inel._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
+		inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 		{
-			const double K = __logspace_K_at(x)*constant::ec; // in Joules
-			imfp_vector[x] = (real)std::log(mat.density()*mat.inelastic_tcs(K)*1e-9);
-		}
-		inel._log_imfp_table = util::table_1D<real, gpu_flag>::create(imfp_vector.data(), logr(K_min), logr(K_max), K_cnt);
+			for (int x = 0; x < K_cnt; ++x)
+			{
+				const double K = __logspace_K_at(x)*constant::ec; // in Joules
+				imfp_vector[x] = (real)std::log(mat.density()*mat.inelastic_tcs(K)*1e-9);
+			}
+		});
 
 
 		/*
 		 * Set ICDF table
 		 */
-		std::vector<real> icdf_vector(K_cnt*P_cnt, 0);
-		for (int y = 0; y < P_cnt; ++y)
+		inel._log_icdf_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
+		inel._log_icdf_table.mem_scope([&](real** icdf_vector)
 		{
-			const double P = __linspace_P_at(y);
+			for (int y = 0; y < P_cnt; ++y)
+			{
+				const double P = __linspace_P_at(y);
+				for (int x = 0; x < K_cnt; ++x)
+				{
+					const double K = __logspace_K_at(x)*constant::ec; // in Joules
+
+					icdf_vector[y][x] = (real)std::log(std::max(0.0, std::min(
+						(K - mat.fermi()) / constant::ec,
+						mat.inelastic_icdf(K, P) / constant::ec
+					)));
+				}
+			}
+		});
+
+		return inel;
+	}
+
+	static HOST inelastic_thomas create(hdf5_file const & mat)
+	{
+		auto __logspace_K_at = [&](int x)
+		{
+			return K_min * std::exp(1.0*x / (K_cnt - 1)*std::log(K_max / K_min));
+		};
+		auto __linspace_P_at = [&](int y)
+		{
+			return 1.0*y / (P_cnt - 1);
+		};
+
+		inelastic_thomas inel;
+
+		inel._fermi = static_cast<real>(mat.get_property_quantity("fermi") / units::eV);
+		inel._band_gap = static_cast<real>(mat.get_property_quantity("band_gap") / units::eV);
+		inel._binding = electron_ionisation<gpu_flag>::create(mat);
+
+		inel._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
+		inel._log_imfp_table.mem_scope([&](real* imfp_vector)
+		{
+			auto inelastic_imfp = mat.get_table_axes<1>("inelastic/imfp");
 			for (int x = 0; x < K_cnt; ++x)
 			{
-				const double K = __logspace_K_at(x)*constant::ec; // in Joules
-
-				icdf_vector[y*K_cnt + x] = (real)std::log(std::max(0.0, std::min(
-					(K - mat.fermi()) / constant::ec,
-					mat.inelastic_icdf(K, P) / constant::ec
-				)));
+				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(__logspace_K_at(x) * units::eV) * units::nm);
 			}
-		}
-		inel._log_icdf_table = util::table_2D<real, gpu_flag>::create(icdf_vector.data(), logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
+		});
 
+		inel._log_icdf_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
+		inel._log_icdf_table.mem_scope([&](real** icdf_vector)
+		{
+			auto fermi = mat.get_property_quantity("fermi");
+			auto inelastic_icdf = mat.get_table_axes<2>("inelastic/w0_icdf");
+			for (int y = 0; y < P_cnt; ++y)
+			{
+				const double P = __linspace_P_at(y);
+				for (int x = 0; x < K_cnt; ++x)
+				{
+					units::quantity<double> K = __logspace_K_at(x)*units::eV;
+
+					// TODO: support creation of dimensionless quantities from scalars
+					icdf_vector[y][x] = (real)std::log(std::max(0.0, std::min<double>(
+						(K - fermi) / units::eV,
+						inelastic_icdf.get_linear(K, P*units::dimensionless) / units::eV
+					)));
+				}
+			}
+		});
 
 		return inel;
 	}

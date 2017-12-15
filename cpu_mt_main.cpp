@@ -36,8 +36,16 @@ using driver = nbl::drivers::cpu_driver<thomas_scatter_list, intersect_t, geomet
 // TODO: material not really destroyed.
 thomas_material load_material(std::string const & filename)
 {
-	material_legacy_thomas mat_legacy = load_mat_file(filename);
-	return thomas_material(mat_legacy);
+	if (filename.back() == 't')
+	{
+		// Old .mat file format
+		return thomas_material(load_mat_file(filename));
+	}
+	else
+	{
+		// New HDF5 file format
+		return thomas_material(nbl::hdf5_file(filename));
+	}
 }
 
 class work_pool

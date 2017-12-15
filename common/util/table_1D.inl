@@ -3,11 +3,12 @@
 namespace nbl { namespace util {
 
 template<typename T, bool gpu_flag>
-HOST table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(T* data, real x_min, real x_max, size_t n)
+HOST table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(real x_min, real x_max, size_t n, T* data)
 {
 	table_1D<T, gpu_flag> table;
 	_table_1D_factory<T, gpu_flag>::allocate(table, n);
-	_table_1D_factory<T, gpu_flag>::set(table, data);
+	if (data != nullptr)
+		_table_1D_factory<T, gpu_flag>::set(table, data);
 	table._x_min = x_min;
 	table._x_step = (n - 1) / (x_max - x_min);
 	return table;
@@ -16,6 +17,13 @@ template<typename T, bool gpu_flag>
 HOST void table_1D<T, gpu_flag>::destroy(table_1D<T, gpu_flag> & table)
 {
 	_table_1D_factory<T, gpu_flag>::free(table);
+}
+
+template<typename T, bool gpu_flag>
+template<typename callback_function>
+HOST void table_1D<T, gpu_flag>::mem_scope(callback_function callback)
+{
+	_table_1D_factory<T, gpu_flag>::mem_scope(*this, callback);
 }
 
 template<typename T, bool gpu_flag>
@@ -69,6 +77,12 @@ struct _table_1D_factory<T, false>
 		memcpy(table._data, data, table._n * sizeof(T));
 	}
 
+	template<typename callback_function>
+	inline static HOST void mem_scope(table_1D<T, false> & table, callback_function callback)
+	{
+		callback(table._data);
+	}
+
 	inline static HOST void free(table_1D<T, false> & table)
 	{
 		delete[] table._data;
@@ -95,6 +109,12 @@ struct _table_1D_factory<T, true>
 			for (size_t i = 0; i < n; ++i)
 				device[i] = data[i];
 		});
+	}
+
+	template<typename callback_function>
+	inline static HOST void mem_scope(table_1D<T, true> & table, callback_function callback)
+	{
+		cuda::cuda_mem_scope<T>(table._data, table._n, callback);
 	}
 
 	inline static HOST void free(table_1D<T, true> & table)

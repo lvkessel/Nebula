@@ -3,6 +3,9 @@
 
 #include "scatter_list.h"
 #include "../legacy_thomas/material.hh"
+#include "../material/hdf5_file.h"
+
+// TODO namespace
 
 template<typename...>
 struct material;
@@ -13,6 +16,7 @@ struct material<scatter_list<scatter_types...>>
 {
 public:
 	HOST material(material_legacy_thomas const & mat);
+	HOST material(nbl::hdf5_file const & mat);
 
 	inline PHYSICS bool can_reach_vacuum(real kineticEnergy) const;
 

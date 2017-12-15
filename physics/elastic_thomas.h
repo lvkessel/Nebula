@@ -3,6 +3,7 @@
 
 #include "../common/util/table_1D.h"
 #include "../common/util/table_2D.h"
+#include "../material/hdf5_file.h"
 
 /*
  * TODO: acoustic phonon loss
@@ -96,31 +97,75 @@ public:
 		/*
 		 * Set IMFP table
 		 */
-		std::vector<real> imfp_vector(K_cnt, 0);
-		for (int x = 0; x < K_cnt; ++x)
+		el._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
+		el._log_imfp_table.mem_scope([&](real* imfp_vector)
 		{
-			const double K = __logspace_K_at(x)*constant::ec; // in Joules
-			imfp_vector[x] = (real)std::log(mat.density()*mat.elastic_tcs(K)*1e-9);
-		}
-		el._log_imfp_table = util::table_1D<real, gpu_flag>::create(imfp_vector.data(), logr(K_min), logr(K_max), K_cnt);
+			for (int x = 0; x < K_cnt; ++x)
+			{
+				const double K = __logspace_K_at(x)*constant::ec; // in Joules
+				imfp_vector[x] = (real)std::log(mat.density()*mat.elastic_tcs(K)*1e-9);
+			}
+		});
 
 
 		/*
 		 * Set ICDF table
 		 */
-		std::vector<real> icdf_vector(K_cnt*P_cnt, 0);
-		for (int y = 0; y < P_cnt; ++y)
+		el._icdf_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
+		el._icdf_table.mem_scope([&](real** icdf_vector)
 		{
-			const double P = __linspace_P_at(y);
+			for (int y = 0; y < P_cnt; ++y)
+			{
+				const double P = __linspace_P_at(y);
+				for (int x = 0; x < K_cnt; ++x)
+				{
+					const double K = __logspace_K_at(x)*constant::ec; // in Joules
+
+					icdf_vector[y][x] = (real)std::cos(std::max(0.0, std::min((double)pi, mat.elastic_icdf(K, P))));
+				}
+			}
+		});
+
+		return el;
+	}
+
+	static HOST elastic_thomas create(hdf5_file const & mat)
+	{
+		auto __logspace_K_at = [&](int x)
+		{
+			return K_min * std::exp(1.0*x / (K_cnt - 1)*std::log(K_max / K_min));
+		};
+		auto __linspace_P_at = [&](int y)
+		{
+			return 1.0*y / (P_cnt - 1);
+		};
+
+		elastic_thomas el;
+
+		el._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
+		el._log_imfp_table.mem_scope([&](real* imfp_vector)
+		{
+			auto elastic_imfp = mat.get_table_axes<1>("elastic/imfp");
 			for (int x = 0; x < K_cnt; ++x)
 			{
-				const double K = __logspace_K_at(x)*constant::ec; // in Joules
-
-				icdf_vector[y*K_cnt + x] = (real)std::cos(std::max(0.0, std::min((double)pi, mat.elastic_icdf(K, P))));
+				imfp_vector[x] = (real)std::log(elastic_imfp.get_loglog(__logspace_K_at(x) * units::eV) * units::nm);
 			}
-		}
-		el._icdf_table = util::table_2D<real, gpu_flag>::create(icdf_vector.data(), logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
+		});
 
+		el._icdf_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
+		el._icdf_table.mem_scope([&](real** icdf_vector)
+		{
+			auto elastic_icdf = mat.get_table_axes<2>("elastic/costheta_icdf");
+			for (int y = 0; y < P_cnt; ++y)
+			{
+				const double P = __linspace_P_at(y);
+				for (int x = 0; x < K_cnt; ++x)
+				{
+					// TODO: support creation of dimensionless quantities from scalars
+					icdf_vector[y][x] = (real)std::max(-1.0, std::min<double>(1.0, elastic_icdf.get_linear(__logspace_K_at(x)*units::eV, P*units::dimensionless)));
+				}
+			}
+		});
 
 		return el;
 	}
