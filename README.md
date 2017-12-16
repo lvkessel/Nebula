@@ -14,27 +14,27 @@ Via a web browser, without git installed:
 * Download nvidia's [cub](https://nvlabs.github.io/cub/download_cub.html) library, and place it in the `3rdparty/cub/` folder. (So there is a `3rdparty/cub/cub/cub.cuh` file).
 
 ## Compiling
+Nebula has been tested with the following compilers and versions:
+* CUDA 8.0 / gcc 4.8
+* CUDA 9.1 / Visual Studio 2017
+
+Later compilers are pretty much guaranteed to work. Earlier versions of these compilers might also work, but they haven't been tested. In addition to these compilers, we require the following:
+* cmake 3.8 or greater
+* hdf5 1.8 or greater
+
 There are three main programs at the moment:
 * `gpu_main.cu`, which, incidentally, also supports a simple CPU version with a preprocessor flag.
 * `cpu_mt_main.cpp`, a multithreaded CPU version.
 * `cpu_inspect_main.cpp`, a single-threaded CPU version that uses the `cascade_saving_particle_manager` to store and print some cascade information.
 
-They can be compiled as follows:
+They are all compiled with cmake:
 ```sh
-nvcc -std=c++11 -gencode=arch=compute_61,code=\"sm_61,compute_61\" --expt-relaxed-constexpr -O3 gpu_main.cu legacy_thomas/*.cc -o nebula
-g++ -std=c++11 -march=native -pthread -O3 cpu_mt_main.cpp legacy_thomas/*.cc -o nebula_cpu
-g++ -std=c++11 -march=native -pthread -O3 cpu_inspect_main.cpp legacy_thomas/*.cc -o nebula_inspect
+mkdir build
+cd build
+cmake ..
+make
 ```
-
-For the GPU version, please modify the `61`s in the `-gencode=[...]` flag to your GPU's [compute capability](https://en.wikipedia.org/wiki/CUDA#GPUs_supported). For example, make them all `60` or `37`.
-
-### Supported compilers
-Nebula has been tested with the following compilers and versions:
-* CUDA 8.0
-* gcc 4.8
-* Visual Studio 2017
-
-Later compilers are pretty much guaranteed to work. Earlier versions of these compilers might also work, but they haven't been tested.
+The executables can then be found in the `build/bin` folder.
 
 ## Running
 Similar to `e-scatter`, though with fewer options:
