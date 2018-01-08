@@ -11,20 +11,20 @@ public:
 	using particle_index_t = uint32_t;
 	using material_index_t = typename material_manager_t::material_index_t;
 
-	static HOST gpu_particle_manager create(particle_index_t capacity);
-	static HOST void destroy(gpu_particle_manager & manager);
+	static CPU gpu_particle_manager create(particle_index_t capacity);
+	static CPU void destroy(gpu_particle_manager & manager);
 
 	// Push particles to GPU. Returns how many particles were actually pushed.
-	HOST particle_index_t push(particle* particles, uint32_t* tags, particle_index_t N);
+	CPU particle_index_t push(particle* particles, uint32_t* tags, particle_index_t N);
 
 	template<typename detect_function>
-	HOST void flush_detected(detect_function function);
+	CPU void flush_detected(detect_function function);
 
-	HOST particle_index_t get_running_count() const;
-	HOST particle_index_t get_detected_count() const;
+	CPU particle_index_t get_running_count() const;
+	CPU particle_index_t get_detected_count() const;
 
 	// Sort particles by event type. Used to prevent warp divergence.
-	HOST void sort();
+	CPU void sort();
 
 	// Direct access, no bounds checking
 	inline PHYSICS particle & operator[](particle_index_t i);

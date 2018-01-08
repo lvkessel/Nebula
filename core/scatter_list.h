@@ -25,7 +25,7 @@ template<typename... scatter_types>
 class scatter_list : nbl::tuple::tuple<scatter_types...>
 {
 public:
-	HOST scatter_list(scatter_types... sc)
+	CPU scatter_list(scatter_types... sc)
 		: nbl::tuple::tuple<scatter_types...>(sc...)
 	{}
 

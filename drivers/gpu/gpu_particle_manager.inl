@@ -7,7 +7,7 @@
 namespace nbl { namespace drivers {
 
 template<typename material_manager_t>
-HOST gpu_particle_manager<material_manager_t>
+CPU gpu_particle_manager<material_manager_t>
 	gpu_particle_manager<material_manager_t>::create(particle_index_t capacity)
 {
 	gpu_particle_manager<material_manager_t> manager;
@@ -79,7 +79,7 @@ HOST gpu_particle_manager<material_manager_t>
 }
 
 template<typename material_manager_t>
-HOST void gpu_particle_manager<material_manager_t>::destroy(
+CPU void gpu_particle_manager<material_manager_t>::destroy(
 	gpu_particle_manager<material_manager_t> & manager)
 {
 	cudaFree(manager._status);
@@ -103,7 +103,7 @@ HOST void gpu_particle_manager<material_manager_t>::destroy(
 }
 
 template<typename material_manager_t>
-HOST auto gpu_particle_manager<material_manager_t>::push(
+CPU auto gpu_particle_manager<material_manager_t>::push(
 	particle* particles, uint32_t* tags, particle_index_t N)
 -> particle_index_t
 {
@@ -164,7 +164,7 @@ HOST auto gpu_particle_manager<material_manager_t>::push(
 }
 
 template<typename material_manager_t>
-HOST auto gpu_particle_manager<material_manager_t>::get_running_count() const -> particle_index_t
+CPU auto gpu_particle_manager<material_manager_t>::get_running_count() const -> particle_index_t
 {
 	particle_index_t N = 0;
 	const particle_index_t capacity = _capacity;
@@ -185,7 +185,7 @@ HOST auto gpu_particle_manager<material_manager_t>::get_running_count() const ->
 }
 
 template<typename material_manager_t>
-HOST auto gpu_particle_manager<material_manager_t>::get_detected_count() const -> particle_index_t
+CPU auto gpu_particle_manager<material_manager_t>::get_detected_count() const -> particle_index_t
 {
 	particle_index_t N = 0;
 	const particle_index_t capacity = _capacity;
@@ -205,7 +205,7 @@ HOST auto gpu_particle_manager<material_manager_t>::get_detected_count() const -
 
 template<typename material_manager_t>
 template<typename detect_function>
-HOST void gpu_particle_manager<material_manager_t>::flush_detected(detect_function func)
+CPU void gpu_particle_manager<material_manager_t>::flush_detected(detect_function func)
 {
 	const auto capacity = _capacity;
 	const auto particle_ptr = _particles;
@@ -235,7 +235,7 @@ HOST void gpu_particle_manager<material_manager_t>::flush_detected(detect_functi
 }
 
 template<typename material_manager_t>
-HOST void gpu_particle_manager<material_manager_t>::sort()
+CPU void gpu_particle_manager<material_manager_t>::sort()
 {
 	cub::DeviceRadixSort::SortPairs<status_t, particle_index_t>(
 		_radix_temp, _radix_temp_size,

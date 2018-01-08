@@ -3,7 +3,7 @@
 namespace nbl { namespace util {
 
 template<typename T, bool gpu_flag>
-HOST table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(real x_min, real x_max, size_t n, T* data)
+CPU table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(real x_min, real x_max, size_t n, T* data)
 {
 	table_1D<T, gpu_flag> table;
 	_table_1D_factory<T, gpu_flag>::allocate(table, n);
@@ -14,14 +14,14 @@ HOST table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(real x_min, real x_max,
 	return table;
 }
 template<typename T, bool gpu_flag>
-HOST void table_1D<T, gpu_flag>::destroy(table_1D<T, gpu_flag> & table)
+CPU void table_1D<T, gpu_flag>::destroy(table_1D<T, gpu_flag> & table)
 {
 	_table_1D_factory<T, gpu_flag>::free(table);
 }
 
 template<typename T, bool gpu_flag>
 template<typename callback_function>
-HOST void table_1D<T, gpu_flag>::mem_scope(callback_function callback)
+CPU void table_1D<T, gpu_flag>::mem_scope(callback_function callback)
 {
 	_table_1D_factory<T, gpu_flag>::mem_scope(*this, callback);
 }
@@ -66,24 +66,24 @@ Original implementation does not handle infinities correctly.
 template<typename T>
 struct _table_1D_factory<T, false>
 {
-	inline static HOST void allocate(table_1D<T, false> & table, size_t n)
+	inline static CPU void allocate(table_1D<T, false> & table, size_t n)
 	{
 		table._n = n;
 		table._data = new T[n];
 	}
 
-	inline static HOST void set(table_1D<T, false> & table, T* data)
+	inline static CPU void set(table_1D<T, false> & table, T* data)
 	{
 		memcpy(table._data, data, table._n * sizeof(T));
 	}
 
 	template<typename callback_function>
-	inline static HOST void mem_scope(table_1D<T, false> & table, callback_function callback)
+	inline static CPU void mem_scope(table_1D<T, false> & table, callback_function callback)
 	{
 		callback(table._data);
 	}
 
-	inline static HOST void free(table_1D<T, false> & table)
+	inline static CPU void free(table_1D<T, false> & table)
 	{
 		delete[] table._data;
 		table._data = nullptr;
@@ -95,13 +95,13 @@ struct _table_1D_factory<T, false>
 template<typename T>
 struct _table_1D_factory<T, true>
 {
-	inline static HOST void allocate(table_1D<T, true> & table, size_t n)
+	inline static CPU void allocate(table_1D<T, true> & table, size_t n)
 	{
 		table._n = n;
 		cuda::cuda_new<T>(&table._data, n);
 	}
 
-	inline static HOST void set(table_1D<T, true> & table, T* data)
+	inline static CPU void set(table_1D<T, true> & table, T* data)
 	{
 		const auto n = table._n;
 		cuda::cuda_mem_scope<T>(table._data, table._n, [data, n](T* device)
@@ -112,12 +112,12 @@ struct _table_1D_factory<T, true>
 	}
 
 	template<typename callback_function>
-	inline static HOST void mem_scope(table_1D<T, true> & table, callback_function callback)
+	inline static CPU void mem_scope(table_1D<T, true> & table, callback_function callback)
 	{
 		cuda::cuda_mem_scope<T>(table._data, table._n, callback);
 	}
 
-	inline static HOST void free(table_1D<T, true> & table)
+	inline static CPU void free(table_1D<T, true> & table)
 	{
 		cudaFree(table._data);
 		table._data = nullptr;

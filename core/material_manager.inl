@@ -1,14 +1,14 @@
 namespace nbl { namespace drivers {
 
 template<typename material_t, bool gpu_flag>
-HOST material_manager<material_t, gpu_flag>
+CPU material_manager<material_t, gpu_flag>
 	material_manager<material_t, gpu_flag>::create(std::vector<material_t> const & material_vector)
 {
 	return _material_manager_factory<material_t, gpu_flag>::create(material_vector);
 }
 
 template<typename material_t, bool gpu_flag>
-HOST void material_manager<material_t, gpu_flag>::destroy(material_manager<material_t, gpu_flag> & manager)
+CPU void material_manager<material_t, gpu_flag>::destroy(material_manager<material_t, gpu_flag> & manager)
 {
 	_material_manager_factory<material_t, gpu_flag>::free(manager);
 }
@@ -36,7 +36,7 @@ struct _material_manager_factory<material_t, false>
 	using material_manager_t = material_manager<material_t, false>;
 	using material_index_t = typename material_manager_t::material_index_t;
 
-	inline static HOST material_manager_t create(std::vector<material_t> const & material_vector)
+	inline static CPU material_manager_t create(std::vector<material_t> const & material_vector)
 	{
 		material_manager_t manager;
 
@@ -51,7 +51,7 @@ struct _material_manager_factory<material_t, false>
 		return manager;
 	}
 
-	inline static HOST void free(material_manager_t & manager)
+	inline static CPU void free(material_manager_t & manager)
 	{
 		::free(manager._materials);
 		manager._materials = nullptr;
@@ -66,7 +66,7 @@ struct _material_manager_factory<material_t, true>
 	using material_manager_t = material_manager<material_t, true>;
 	using material_index_t = typename material_manager_t::material_index_t;
 
-	inline static HOST material_manager_t create(std::vector<material_t> const & material_vector)
+	inline static CPU material_manager_t create(std::vector<material_t> const & material_vector)
 	{
 		material_manager_t manager;
 
@@ -85,7 +85,7 @@ struct _material_manager_factory<material_t, true>
 		return manager;
 	}
 
-	inline static HOST void free(material_manager_t & manager)
+	inline static CPU void free(material_manager_t & manager)
 	{
 		cudaFree(manager._materials);
 		manager._materials = nullptr;

@@ -19,7 +19,7 @@ public:
 		return _ionisation_table.get_rounddown(x, y);
 	}
 
-	static HOST electron_ionisation create(material_legacy_thomas const & mat)
+	static CPU electron_ionisation create(material_legacy_thomas const & mat)
 	{
 		/*
 		 * TODO: move this somewhere else (see inelastic, elastic, binding)
@@ -70,7 +70,7 @@ public:
 		return ei;
 	}
 
-	static HOST electron_ionisation create(hdf5_file const & mat)
+	static CPU electron_ionisation create(hdf5_file const & mat)
 	{
 		auto __logspace_K_at = [&](int x)
 		{
@@ -100,7 +100,7 @@ public:
 		return ei;
 	}
 
-	static HOST void destroy(electron_ionisation & ei)
+	static CPU void destroy(electron_ionisation & ei)
 	{
 		util::table_2D<real, gpu_flag>::destroy(ei._ionisation_table);
 	}

@@ -15,8 +15,8 @@ struct material<scatter_list<scatter_types...>>
 	: public scatter_list<scatter_types...>
 {
 public:
-	HOST material(material_legacy_thomas const & mat);
-	HOST material(nbl::hdf5_file const & mat);
+	CPU material(material_legacy_thomas const & mat);
+	CPU material(nbl::hdf5_file const & mat);
 
 	inline PHYSICS bool can_reach_vacuum(real kineticEnergy) const;
 

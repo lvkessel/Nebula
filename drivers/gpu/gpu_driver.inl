@@ -34,7 +34,7 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-HOST gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::gpu_driver(
+CPU gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::gpu_driver(
 	particle_index_t particle_capacity,
 	geometry_manager_t geometry,
 	intersect_t intersect,
@@ -62,7 +62,7 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-HOST gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::~gpu_driver()
+CPU gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::~gpu_driver()
 {
 	particle_manager_t::destroy(_particles);
 	material_manager_t::destroy(_materials);
@@ -72,7 +72,7 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-HOST auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push(
+CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push(
 	particle* particles,
 	uint32_t* tags,
 	particle_index_t N
@@ -85,7 +85,7 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-HOST void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::do_iteration()
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::do_iteration()
 {
 	init();
 	_particles.sort();
@@ -96,7 +96,7 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-HOST auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::get_running_count() const
+CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::get_running_count() const
 -> particle_index_t
 {
 	return _particles.get_running_count();
@@ -105,7 +105,7 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-HOST auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::get_detected_count() const
+CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::get_detected_count() const
 -> particle_index_t
 {
 	return _particles.get_detected_count();
@@ -116,7 +116,7 @@ template<typename scatter_list_t,
 	typename geometry_manager_t
 >
 template<typename detect_function>
-HOST void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::flush_detected(
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::flush_detected(
 	detect_function func)
 {
 	_particles.flush_detected(func);
@@ -126,7 +126,7 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-HOST void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::init()
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::init()
 {
 	kernels::init<<<_num_blocks, _threads_per_block>>>(
 		_particles, _materials, _geometry, curand_states
@@ -137,7 +137,7 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-HOST void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::events()
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::events()
 {
 	kernels::intersect<<<_num_blocks, _threads_per_block>>>(
 		_particles, _materials, _geometry, curand_states, _intersect

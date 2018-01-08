@@ -4,7 +4,7 @@
 namespace nbl { namespace cuda {
 
 template<typename T>
-HOST void cuda_new(T** destination, size_t N)
+CPU void cuda_new(T** destination, size_t N)
 {
 	cudaError_t cudaStatus = cudaMalloc(destination, N * sizeof(T));
 	if (cudaStatus != cudaSuccess)
@@ -14,7 +14,7 @@ HOST void cuda_new(T** destination, size_t N)
 }
 
 template<typename T>
-HOST void cuda_new_2D(T** destination, size_t* pitch, size_t width, size_t height)
+CPU void cuda_new_2D(T** destination, size_t* pitch, size_t width, size_t height)
 {
 	cudaError_t cudaStatus = cudaMallocPitch(destination, pitch, width*sizeof(T), height);
 	if (cudaStatus != cudaSuccess)
@@ -24,7 +24,7 @@ HOST void cuda_new_2D(T** destination, size_t* pitch, size_t width, size_t heigh
 }
 
 template<typename T>
-HOST void cuda_new_3D(T** destination, size_t* pitch, size_t width, size_t height, size_t depth)
+CPU void cuda_new_3D(T** destination, size_t* pitch, size_t width, size_t height, size_t depth)
 {
 	cudaError_t cudaStatus = cudaMallocPitch(destination, pitch, width*sizeof(T), height*depth);
 	if (cudaStatus != cudaSuccess)

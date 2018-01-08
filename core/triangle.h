@@ -6,7 +6,7 @@ class triangle
 public:
 	// Constructor, takes vertices for the edges.
 	// TODO: document definition for "in" and "out" materials
-	HOST triangle(vec3 r0, vec3 r1, vec3 r2, int material_in, int material_out);
+	CPU triangle(vec3 r0, vec3 r1, vec3 r2, int material_in, int material_out);
 
 	// Next ray-triangle intersection is at ray_start + t*ray_direction,
 	// where t is the return value of this function.

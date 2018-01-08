@@ -8,7 +8,7 @@ namespace nbl { namespace cuda {
  * Callback function should have signature void(T*).
  */
 template<typename T, typename callback_func>
-HOST void cuda_mem_scope(T* dev_p, size_t N, callback_func callback)
+CPU void cuda_mem_scope(T* dev_p, size_t N, callback_func callback)
 {
 	if (dev_p == nullptr || N == 0)
 		return;
@@ -32,7 +32,7 @@ HOST void cuda_mem_scope(T* dev_p, size_t N, callback_func callback)
  * with indexing convention arr[y][x]
  */
 template<typename T, typename callback_func>
-HOST void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, callback_func callback)
+CPU void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, callback_func callback)
 {
 	if (dev_p == nullptr || pitch == 0 || width == 0 || height == 0)
 		return;
@@ -62,7 +62,7 @@ HOST void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height,
  * with indexing convention arr[z][y][x]
  */
 template<typename T, typename callback_func>
-HOST void cuda_mem_scope_3D(T* dev_p, size_t pitch, size_t width, size_t height, size_t depth, callback_func callback)
+CPU void cuda_mem_scope_3D(T* dev_p, size_t pitch, size_t width, size_t height, size_t depth, callback_func callback)
 {
 	if (dev_p == nullptr || pitch == 0 || width == 0 || height == 0 || depth == 0)
 		return;

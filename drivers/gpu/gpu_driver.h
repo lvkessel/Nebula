@@ -30,20 +30,20 @@ public:
 	using particle_index_t = typename particle_manager_t::particle_index_t;
 	using status_t = typename particle_manager_t::status_t;
 
-	HOST gpu_driver(particle_index_t particle_capacity, geometry_manager_t geom,
+	CPU gpu_driver(particle_index_t particle_capacity, geometry_manager_t geom,
 		intersect_t inter, std::vector<material_t> materials);
-	HOST ~gpu_driver();
+	CPU ~gpu_driver();
 
-	inline HOST particle_index_t push(particle* particles, uint32_t* tags, particle_index_t N);
-	HOST void do_iteration();
+	inline CPU particle_index_t push(particle* particles, uint32_t* tags, particle_index_t N);
+	CPU void do_iteration();
 
-	HOST particle_index_t get_running_count() const;
-	HOST particle_index_t get_detected_count() const;
+	CPU particle_index_t get_running_count() const;
+	CPU particle_index_t get_detected_count() const;
 	
 	// Detect_function is called for each particle before it is terminated.
 	// One will typically pass a function that writes interesting data to an output stream.
 	template<typename detect_function>
-	HOST void flush_detected(detect_function function);
+	CPU void flush_detected(detect_function function);
 	
 private:
 	particle_manager_t _particles;
@@ -59,8 +59,8 @@ private:
 	util::random_generator<true>* curand_states = nullptr;
 
 	// Functions called by do_iteration()
-	inline HOST void init();
-	inline HOST void events();
+	inline CPU void init();
+	inline CPU void events();
 
 	gpu_driver(gpu_driver const &) = delete;
 	gpu_driver& operator=(gpu_driver const &) = delete;

@@ -165,7 +165,7 @@ public:
 		particle_mgr[particle_idx] = this_particle;
 	}
 
-	static HOST inelastic_thomas create(material_legacy_thomas const & mat)
+	static CPU inelastic_thomas create(material_legacy_thomas const & mat)
 	{
 		inelastic_thomas inel;
 
@@ -230,7 +230,7 @@ public:
 		return inel;
 	}
 
-	static HOST inelastic_thomas create(hdf5_file const & mat)
+	static CPU inelastic_thomas create(hdf5_file const & mat)
 	{
 		auto __logspace_K_at = [&](int x)
 		{
@@ -281,7 +281,7 @@ public:
 		return inel;
 	}
 
-	static HOST void destroy(inelastic_thomas & inel)
+	static CPU void destroy(inelastic_thomas & inel)
 	{
 		util::table_1D<real, gpu_flag>::destroy(inel._log_imfp_table);
 		util::table_2D<real, gpu_flag>::destroy(inel._log_icdf_table);

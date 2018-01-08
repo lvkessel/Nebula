@@ -1,7 +1,7 @@
 namespace nbl { namespace geometry {
 
 template<bool gpu_flag>
-HOST trilist<gpu_flag> trilist<gpu_flag>::create(std::vector<triangle> const & triangles)
+CPU trilist<gpu_flag> trilist<gpu_flag>::create(std::vector<triangle> const & triangles)
 {
 	// TODO: error message
 	if (triangles.empty())
@@ -36,7 +36,7 @@ HOST trilist<gpu_flag> trilist<gpu_flag>::create(std::vector<triangle> const & t
 }
 
 template<bool gpu_flag>
-HOST void trilist<gpu_flag>::destroy(trilist<gpu_flag> & geometry)
+CPU void trilist<gpu_flag>::destroy(trilist<gpu_flag> & geometry)
 {
 	_trilist_factory<gpu_flag>::destroy(geometry);
 }
@@ -102,7 +102,7 @@ inline PHYSICS vec3 trilist<gpu_flag>::AABB_max() const
 }
 
 template<bool gpu_flag>
-HOST void trilist<gpu_flag>::set_AABB(vec3 min, vec3 max)
+CPU void trilist<gpu_flag>::set_AABB(vec3 min, vec3 max)
 {
 	_AABB_min = min;
 	_AABB_max = max;
@@ -115,7 +115,7 @@ HOST void trilist<gpu_flag>::set_AABB(vec3 min, vec3 max)
 template<>
 struct _trilist_factory<false>
 {
-	inline static HOST trilist<false> create(std::vector<triangle> triangles, vec3 AABB_min, vec3 AABB_max)
+	inline static CPU trilist<false> create(std::vector<triangle> triangles, vec3 AABB_min, vec3 AABB_max)
 	{
 		using trilist_t = trilist<false>;
 		using triangle_index_t = trilist_t::triangle_index_t;
@@ -137,7 +137,7 @@ struct _trilist_factory<false>
 		return geometry;
 	}
 
-	inline static HOST void free(trilist<false> & geometry)
+	inline static CPU void free(trilist<false> & geometry)
 	{
 		::free(geometry._triangles);
 
@@ -150,7 +150,7 @@ struct _trilist_factory<false>
 template<>
 struct _trilist_factory<true>
 {
-	inline static HOST trilist<true> create(std::vector<triangle> triangles, vec3 AABB_min, vec3 AABB_max)
+	inline static CPU trilist<true> create(std::vector<triangle> triangles, vec3 AABB_min, vec3 AABB_max)
 	{
 		using trilist_t = trilist<true>;
 		using triangle_index_t = trilist_t::triangle_index_t;
@@ -175,7 +175,7 @@ struct _trilist_factory<true>
 		return geometry;
 	}
 
-	inline static HOST void free(trilist<true> & geometry)
+	inline static CPU void free(trilist<true> & geometry)
 	{
 		cudaFree(geometry._triangles);
 

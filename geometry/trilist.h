@@ -24,8 +24,8 @@ class trilist
 public:
 	using triangle_index_t = uint32_t;
 
-	static HOST trilist create(std::vector<triangle> const & triangles);
-	static HOST void destroy(trilist & geometry);
+	static CPU trilist create(std::vector<triangle> const & triangles);
+	static CPU void destroy(trilist & geometry);
 
 	// Returns whether a certain position is part of the simulation domain
 	inline PHYSICS bool in_domain(vec3 position);
@@ -45,7 +45,7 @@ public:
 	inline PHYSICS vec3 AABB_max() const;
 
 private:
-	HOST void set_AABB(vec3 min, vec3 max);
+	CPU void set_AABB(vec3 min, vec3 max);
 
 	triangle* _triangles = nullptr;
 	triangle_index_t _N  = 0;

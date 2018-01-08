@@ -23,15 +23,15 @@ class table_2D
 public:
 	// If data is supplied, it is organised such that data[x,y] = data + y*width + x
 	// Throws bad_alloc exception if it goes wrong
-	static HOST table_2D<T, gpu_flag> create(
+	static CPU table_2D<T, gpu_flag> create(
 		real x_min, real x_max, size_t width,
 		real y_min, real y_max, size_t height,
 		T* data = nullptr);
-	static HOST void destroy(table_2D<T, gpu_flag> & arr);
+	static CPU void destroy(table_2D<T, gpu_flag> & arr);
 
 	// Like cuda_mem_scope_2D: set or get data using a callback function
 	template<typename callback_function>
-	HOST void mem_scope(callback_function callback);
+	CPU void mem_scope(callback_function callback);
 
 	// Direct access to index, no bounds checking.
 	inline PHYSICS T & operator()(size_t i, size_t j);

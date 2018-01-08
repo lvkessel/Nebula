@@ -23,12 +23,12 @@ class table_1D
 public:
 	// Throws bad_alloc exception if it goes wrong
 	// A raw data pointer may optionally be supplied for initialization
-	static HOST table_1D<T, gpu_flag> create(real x_min, real x_max, size_t n, T* data = nullptr);
-	static HOST void destroy(table_1D<T, gpu_flag> & arr);
+	static CPU table_1D<T, gpu_flag> create(real x_min, real x_max, size_t n, T* data = nullptr);
+	static CPU void destroy(table_1D<T, gpu_flag> & arr);
 
 	// Like cuda_mem_scope: set or get data using a callback function
 	template<typename callback_function>
-	HOST void mem_scope(callback_function callback);
+	CPU void mem_scope(callback_function callback);
 
 	// Direct access to index, no bounds checking.
 	inline PHYSICS T & operator()(size_t i);

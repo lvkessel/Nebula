@@ -13,8 +13,8 @@ public:
 	using material_t = material_type;
 	using material_index_t = int;
 
-	static HOST material_manager<material_t, gpu_flag> create(std::vector<material_t> const & materials);
-	static HOST void destroy(material_manager & manager);
+	static CPU material_manager<material_t, gpu_flag> create(std::vector<material_t> const & materials);
+	static CPU void destroy(material_manager & manager);
 
 	// Direct access to a material, no bounds checking
 	inline PHYSICS material_t & operator[](material_index_t i);

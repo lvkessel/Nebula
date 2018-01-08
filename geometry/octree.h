@@ -23,8 +23,8 @@ class octree
 public:
 	using triangle_index_t = uint32_t;
 
-	static HOST octree<gpu_flag> create(std::vector<triangle> const & triangles);
-	static HOST void destroy(octree & geometry);
+	static CPU octree<gpu_flag> create(std::vector<triangle> const & triangles);
+	static CPU void destroy(octree & geometry);
 
 	// Returns whether a certain position is part of the simulation domain
 	inline PHYSICS bool in_domain(vec3 position) const;
@@ -44,7 +44,7 @@ public:
 	inline PHYSICS vec3 AABB_max() const;
 
 private:
-	inline HOST void set_AABB(vec3 min, vec3 max);
+	inline CPU void set_AABB(vec3 min, vec3 max);
 	inline static PHYSICS vec3 AABB_intersect(vec3 pos, vec3 dir, vec3 center, vec3 halfsize);
 
 	inline static PHYSICS int clz(uint64_t x);

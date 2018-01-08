@@ -74,7 +74,7 @@ public:
 		}*/
 	}
 
-	static HOST elastic_thomas create(material_legacy_thomas const & mat)
+	static CPU elastic_thomas create(material_legacy_thomas const & mat)
 	{
 		elastic_thomas el;
 
@@ -129,7 +129,7 @@ public:
 		return el;
 	}
 
-	static HOST elastic_thomas create(hdf5_file const & mat)
+	static CPU elastic_thomas create(hdf5_file const & mat)
 	{
 		auto __logspace_K_at = [&](int x)
 		{
@@ -170,7 +170,7 @@ public:
 		return el;
 	}
 
-	static HOST void destroy(elastic_thomas & el)
+	static CPU void destroy(elastic_thomas & el)
 	{
 		util::table_1D<real, gpu_flag>::destroy(el._log_imfp_table);
 		util::table_2D<real, gpu_flag>::destroy(el._icdf_table);

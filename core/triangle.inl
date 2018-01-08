@@ -1,4 +1,4 @@
-HOST triangle::triangle(vec3 r0, vec3 r1, vec3 r2, int material_in, int material_out)
+CPU triangle::triangle(vec3 r0, vec3 r1, vec3 r2, int material_in, int material_out)
 	: material_in(material_in), material_out(material_out),
 	_r0(r0), _e1(r1-r0), _e2(r2-r0)
 {}

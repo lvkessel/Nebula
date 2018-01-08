@@ -25,10 +25,10 @@
 	#include <device_launch_parameters.h>
 	#include <device_functions.h>
 
-	#define HOST __host__               // CPU-only code
+	#define CPU __host__                // CPU-only code
 	#define PHYSICS __host__ __device__ // Physics are GPU and CPU code
 #else // CUDA_AVAILABLE
-	#define HOST
+	#define CPU
 	#define PHYSICS
 #endif
 

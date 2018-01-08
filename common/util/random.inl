@@ -6,7 +6,7 @@ template<>
 class _random_state<false>
 {
 public:
-	HOST _random_state() {}
+	CPU _random_state() {}
 	PHYSICS real unit()
 	{
 #if CUDA_COMPILING

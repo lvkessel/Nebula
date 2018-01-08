@@ -4,7 +4,7 @@
 namespace nbl { namespace geometry {
 
 template<bool gpu_flag>
-HOST octree<gpu_flag> octree<gpu_flag>::create(std::vector<triangle> const & triangles)
+CPU octree<gpu_flag> octree<gpu_flag>::create(std::vector<triangle> const & triangles)
 {
 	// Conversion between legacy_thomas::point3 and vec3.
 	auto p3 = [](vec3 const & v) -> legacy_thomas::point3 { return legacy_thomas::point3(v.x, v.y, v.z); };
@@ -122,7 +122,7 @@ HOST octree<gpu_flag> octree<gpu_flag>::create(std::vector<triangle> const & tri
 }
 
 template<bool gpu_flag>
-HOST void octree<gpu_flag>::destroy(octree<gpu_flag> & geometry)
+CPU void octree<gpu_flag>::destroy(octree<gpu_flag> & geometry)
 {
 	_octree_factory<gpu_flag>::free(geometry);
 }
@@ -313,7 +313,7 @@ inline PHYSICS vec3 octree<gpu_flag>::AABB_max() const
 }
 
 template<bool gpu_flag>
-HOST void octree<gpu_flag>::set_AABB(vec3 min, vec3 max)
+CPU void octree<gpu_flag>::set_AABB(vec3 min, vec3 max)
 {
 	_AABB_center = (min+max)/2;
 	_AABB_halfsize.x = std::fabs(max.x-min.x)/2;
@@ -357,7 +357,7 @@ PHYSICS int octree<gpu_flag>::clz(uint64_t x)
 template<>
 struct _octree_factory<false>
 {
-	inline static HOST octree<false> create(octree<false>::triangle_index_t N, std::vector<int> octree_vec,
+	inline static CPU octree<false> create(octree<false>::triangle_index_t N, std::vector<int> octree_vec,
 		std::vector<const legacy_thomas::triangle*> triangle_p_vec, vec3 AABB_min, vec3 AABB_max)
 	{
 		auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return { (real)p.x, (real)p.y, (real)p.z }; };
@@ -381,7 +381,7 @@ struct _octree_factory<false>
 		return geometry;
 	}
 
-	inline static HOST void free(octree<false> & geometry)
+	inline static CPU void free(octree<false> & geometry)
 	{
 		delete[] geometry._octree_data;
 		::free(geometry._triangles);
@@ -396,7 +396,7 @@ struct _octree_factory<false>
 template<>
 struct _octree_factory<true>
 {
-	inline static HOST octree<true> create(octree<true>::triangle_index_t N, std::vector<int> octree_vec,
+	inline static CPU octree<true> create(octree<true>::triangle_index_t N, std::vector<int> octree_vec,
 		std::vector<const legacy_thomas::triangle*> triangle_p_vec, vec3 AABB_min, vec3 AABB_max)
 	{
 		auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return { (real)p.x, (real)p.y, (real)p.z }; };
@@ -426,7 +426,7 @@ struct _octree_factory<true>
 		return geometry;
 	}
 
-	inline static HOST void free(octree<true> & geometry)
+	inline static CPU void free(octree<true> & geometry)
 	{
 		cudaFree(geometry._octree_data);
 		cudaFree(geometry._triangles);

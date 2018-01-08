@@ -50,28 +50,28 @@ inline PHYSICS real clampr(real i, real low, real high) { return i < low ? low :
 	#include <cmath>
 	#include <algorithm>
 
-	inline HOST int rintr(real i) { return (int)std::rint(i); }
-	inline HOST int floorr(real i) { return (int)std::floor(i); }
-	inline HOST real minr(real a, real b) { return std::min(a, b); }
-	inline HOST real maxr(real a, real b) { return std::max(a, b); }
-	inline HOST real absr(real x) { return std::abs(x); }
-	inline HOST real sqrtr(real x) { return std::sqrt(x); }
-	inline HOST real logr(real x) { return std::log(x); }
-	inline HOST real expr(real x) { return std::exp(x); }
-	inline HOST real expm1r(real x) { return std::expm1(x); }
-	inline HOST real sinr(real x) { return std::sin(x); }
-	inline HOST real cosr(real x) { return std::cos(x); }
-	inline HOST real atan2r(real y, real x) { return std::atan2(y, x); }
+	inline CPU int rintr(real i) { return (int)std::rint(i); }
+	inline CPU int floorr(real i) { return (int)std::floor(i); }
+	inline CPU real minr(real a, real b) { return std::min(a, b); }
+	inline CPU real maxr(real a, real b) { return std::max(a, b); }
+	inline CPU real absr(real x) { return std::abs(x); }
+	inline CPU real sqrtr(real x) { return std::sqrt(x); }
+	inline CPU real logr(real x) { return std::log(x); }
+	inline CPU real expr(real x) { return std::exp(x); }
+	inline CPU real expm1r(real x) { return std::expm1(x); }
+	inline CPU real sinr(real x) { return std::sin(x); }
+	inline CPU real cosr(real x) { return std::cos(x); }
+	inline CPU real atan2r(real y, real x) { return std::atan2(y, x); }
 
-	inline HOST void sincosr(real x, real* sin_ptr, real* cos_ptr)
+	inline CPU void sincosr(real x, real* sin_ptr, real* cos_ptr)
 	{
 		// TODO: try using sin^2(x) + cos^2(x) = 1,
 		// but remember to get the sign right.
 		*sin_ptr = sinr(x);
 		*cos_ptr = cosr(x);
 	}
-	inline HOST real copysignr(real x, real y) { return std::copysign(x, y); }
-	inline HOST real saturater(real x) { return clampr(x, 0, 1); }
+	inline CPU real copysignr(real x, real y) { return std::copysign(x, y); }
+	inline CPU real saturater(real x) { return clampr(x, 0, 1); }
 #endif // CUDA_COMPILING
 
 #endif // __SCALAR_MATH_H_
