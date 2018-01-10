@@ -77,7 +77,7 @@ CPU void cuda_mem_scope_3D(T* dev_p, size_t pitch, size_t width, size_t height, 
 		host_pp[y] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(host_p) + y*pitch);
 	T*** host_ppp = new T**[depth];
 	for (size_t z = 0; z < depth; ++z)
-		host_ppp[z] = host_pp[z * height];
+		host_ppp[z] = &host_pp[z * height];
 
 	// Callback
 	callback(host_ppp);

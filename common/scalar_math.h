@@ -19,6 +19,7 @@ inline PHYSICS real clampr(real i, real low, real high) { return i < low ? low :
 		inline __device__ real maxr(real a, real b) { return fmax(a, b); }
 		inline __device__ real absr(real x) { return fabs(x); }
 		inline __device__ real sqrtr(real x) { return sqrt(x); }
+		inline __device__ real cbrtr(real x) { return cbrt(x); }
 		inline __device__ real logr(real x) { return log(x); }
 		inline __device__ real expr(real x) { return exp(x); }
 		inline __device__ real expm1r(real x) { return expm1(x); }
@@ -35,6 +36,7 @@ inline PHYSICS real clampr(real i, real low, real high) { return i < low ? low :
 		inline __device__ real maxr(real a, real b) { return fmaxf(a, b); }
 		inline __device__ real absr(real x) { return fabsf(x); }
 		inline __device__ real sqrtr(real x) { return sqrtf(x); }
+		inline __device__ real cbrtr(real x) { return cbrtf(x); }
 		inline __device__ real logr(real x) { return logf(x); }
 		inline __device__ real expr(real x) { return expf(x); }
 		inline __device__ real expm1r(real x) { return expm1f(x); }
@@ -56,6 +58,7 @@ inline PHYSICS real clampr(real i, real low, real high) { return i < low ? low :
 	inline CPU real maxr(real a, real b) { return std::max(a, b); }
 	inline CPU real absr(real x) { return std::abs(x); }
 	inline CPU real sqrtr(real x) { return std::sqrt(x); }
+	inline CPU real cbrtr(real x) { return std::cbrt(x); }
 	inline CPU real logr(real x) { return std::log(x); }
 	inline CPU real expr(real x) { return std::exp(x); }
 	inline CPU real expm1r(real x) { return std::expm1(x); }
