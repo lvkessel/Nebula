@@ -53,7 +53,7 @@ namespace
 	 * Read an attribute, expecting a quantity (value + unit)
 	 */
 	inline units::quantity<double> read_attribute_quantity(
-		H5::Attribute const & attribute, units::unit_parser const & parser)
+		H5::Attribute const & attribute, units::unit_parser<double> const & parser)
 	{
 		struct data_struct
 		{
@@ -108,7 +108,7 @@ namespace
 	inline std::array<nd_array::ax_list<double>, N> get_scales(
 		H5::DataSet const & dataset,
 		std::array<hsize_t, N> const & dimensions,
-		units::unit_parser const & parser)
+		units::unit_parser<double> const & parser)
 	{
 		std::array<nd_array::ax_list<double>, N> scales;
 
@@ -155,7 +155,7 @@ namespace
 	 */
 	template<size_t N>
 	inline hdf5_file::hdf5_table<N> read_axis_dataset(H5::DataSet dataset,
-		units::unit_parser const & parser)
+		units::unit_parser<double> const & parser)
 	{
 		// Get the dimensions and scales
 		const H5::DataSpace dataspace = dataset.getSpace();
@@ -174,7 +174,7 @@ namespace
 // The weird (H5::Exception::dontPrint(), filename) construction exists because
 // we want to call H5::Exception::dontPrint() before initializing _file. The
 // comma operator performs dontPrint and evaluates to filename.
-hdf5_file::hdf5_file(std::string const & filename) 
+hdf5_file::hdf5_file(std::string const & filename)
 	try : _file((H5::Exception::dontPrint(), filename), H5F_ACC_RDONLY)
 {}
 catch(H5::Exception const &)
@@ -195,7 +195,7 @@ std::string hdf5_file::get_property_string(std::string const & name) const
 }
 units::quantity<double> hdf5_file::get_property_quantity(
 	std::string const & name,
-	units::unit_parser const & parser) const
+	units::unit_parser<double> const & parser) const
 {
 	try
 	{
@@ -212,7 +212,7 @@ units::quantity<double> hdf5_file::get_property_quantity(
 template<size_t N>
 hdf5_file::hdf5_table<N> hdf5_file::get_table_axes(
 	std::string const & name,
-	units::unit_parser const & parser) const
+	units::unit_parser<double> const & parser) const
 {
 	try
 	{
@@ -226,8 +226,8 @@ hdf5_file::hdf5_table<N> hdf5_file::get_table_axes(
 
 
 // Explicit instantiations
-template hdf5_file::hdf5_table<1> hdf5_file::get_table_axes<1>(std::string const &, units::unit_parser const &) const;
-template hdf5_file::hdf5_table<2> hdf5_file::get_table_axes<2>(std::string const &, units::unit_parser const &) const;
-template hdf5_file::hdf5_table<3> hdf5_file::get_table_axes<3>(std::string const &, units::unit_parser const &) const;
+template hdf5_file::hdf5_table<1> hdf5_file::get_table_axes<1>(std::string const &, units::unit_parser<double> const &) const;
+template hdf5_file::hdf5_table<2> hdf5_file::get_table_axes<2>(std::string const &, units::unit_parser<double> const &) const;
+template hdf5_file::hdf5_table<3> hdf5_file::get_table_axes<3>(std::string const &, units::unit_parser<double> const &) const;
 
 } // namespace nbl

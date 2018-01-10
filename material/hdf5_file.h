@@ -38,14 +38,14 @@ public:
 	// Get property, either a string or a quantity
 	std::string get_property_string(std::string const & name) const;
 	units::quantity<double> get_property_quantity(std::string const & name,
-		units::unit_parser const & parser = units::default_unit_parser()) const;
+		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
 
 	// Get an N-dimensional dataset, with units and axis information.
 	// If axis information is not given in the file, it is a dimensionless
 	// linear axis from 0 to 1 (inclusive)
 	template<size_t N>
 	hdf5_table<N> get_table_axes(std::string const & name,
-		units::unit_parser const & parser = units::default_unit_parser()) const;
+		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
 
 private:
 	H5::H5File _file;

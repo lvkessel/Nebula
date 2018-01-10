@@ -3,9 +3,6 @@
 
 /*
  * Class to parse number - unit strings.
- * 
- * TODO: make this a template to allow returning arbitrary value types.
- * Because of the visual studio issues in unit_system.h, this has not been done yet.
  */
 
 #include <string>
@@ -14,15 +11,18 @@
 
 namespace nbl { namespace units {
 
+template<typename T>
 class unit_parser
 {
 public:
-	quantity<double> parse_unit(std::string const & text) const
+	using value_type = quantity<T>;
+
+	value_type parse_unit(std::string const & text) const
 	{
 		return parse_unit(text.cbegin(), text.cend());
 	}
 
-	quantity<double> parse_value_unit(std::string const & text) const
+	value_type parse_value_unit(std::string const & text) const
 	{
 		// Parse number, simply by throwing the whole string into std::stod.
 		std::size_t next_idx;
@@ -32,22 +32,22 @@ public:
 		return value * parse_unit(text.cbegin() + next_idx, text.cend());
 	}
 
-	void add_unit(std::string const & unit_name, quantity<double> unit_value)
+	void add_unit(std::string const & unit_name, value_type unit_value)
 	{
 		unit_map.insert({ unit_name, unit_value });
 	}
 
 private:
-	std::map<std::string, quantity<double>> unit_map;
+	std::map<std::string, value_type> unit_map;
 
 	/*
 	 * This function parses a unit in the form of "g/cm^3", possibly with a leading * or /.
 	 */
 	template<typename iterator_type>
-	quantity<double> parse_unit(iterator_type current_position, iterator_type end) const
+	value_type parse_unit(iterator_type current_position, iterator_type end) const
 	{
 		std::string buffer;
-		quantity<double> final_unit{ 1, dimensions::dimensionless };
+		value_type final_unit{ 1, dimensions::dimensionless };
 
 		while (current_position != end)
 		{

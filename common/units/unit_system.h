@@ -28,9 +28,9 @@ constexpr quantity<double> cm { 1e7, dimensions::length };       // centimeter
 constexpr quantity<double> C  { 6.2415e18, dimensions::charge }; // Coulomb
 constexpr quantity<double> g  { 6.2415e15, dimensions::mass };   // gram
 
-inline unit_parser default_unit_parser()
+inline unit_parser<double> default_unit_parser()
 {
-	unit_parser p;
+	unit_parser<double> p;
 
 	p.add_unit("eV", units::eV);
 	p.add_unit("nm", units::nm);
