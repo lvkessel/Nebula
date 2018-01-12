@@ -108,6 +108,30 @@ struct quantity
 	{
 		return !(*this == rhs);
 	}
+	bool operator>(quantity const & rhs) const
+	{
+		if (units != rhs.units)
+			throw std::runtime_error("Comparing incompatible units.");
+		return value > rhs.value;
+	}
+	bool operator>=(quantity const & rhs) const
+	{
+		if (units != rhs.units)
+			throw std::runtime_error("Comparing incompatible units.");
+		return value >= rhs.value;
+	}
+	bool operator<(quantity const & rhs) const
+	{
+		if (units != rhs.units)
+			throw std::runtime_error("Comparing incompatible units.");
+		return value < rhs.value;
+	}
+	bool operator<=(quantity const & rhs) const
+	{
+		if (units != rhs.units)
+			throw std::runtime_error("Comparing incompatible units.");
+		return value <= rhs.value;
+	}
 };
 
 template<typename T>
