@@ -93,6 +93,10 @@ public:
 				{
 					// TODO: support creation of dimensionless quantities from scalars
 					units::quantity<double> binding = table.get_rounddown(__logspace_K_at(x) * units::eV, P*units::dimensionless);
+
+					if (!std::isfinite(binding.value))
+						binding = -1 * units::eV;
+
 					ionisation_vector[y][x] = real(binding / units::eV);
 				}
 			}
