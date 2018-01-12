@@ -59,12 +59,14 @@ struct quantity
 		return *this;
 	}
 
-	quantity& operator*=(value_type const rhs)
+	template<typename U>
+	typename std::enable_if<std::is_convertible<U,value_type>::value, quantity&>::type operator*=(U const rhs)
 	{
 		value *= rhs;
 		return *this;
 	}
-	quantity& operator/=(value_type const rhs)
+	template<typename U>
+	typename std::enable_if<std::is_convertible<U,value_type>::value, quantity&>::type operator/=(U const rhs)
 	{
 		value /= rhs;
 		return *this;
@@ -86,11 +88,13 @@ struct quantity
 	{
 		return quantity(*this) /= rhs;
 	}
-	const quantity operator*(value_type const rhs) const
+	template<typename U>
+	typename std::enable_if<std::is_convertible<U,value_type>::value, const quantity>::type operator*(U const rhs) const
 	{
 		return quantity(*this) *= rhs;
 	}
-	const quantity operator/(value_type const rhs) const
+	template<typename U>
+	typename std::enable_if<std::is_convertible<U,value_type>::value, const quantity>::type operator/(U const rhs) const
 	{
 		return quantity(*this) /= rhs;
 	}
@@ -116,8 +120,8 @@ inline quantity<T> pow(quantity<T> q, int power)
 	};
 }
 
-template<typename T>
-inline const quantity<T> operator*(T const v, quantity<T> const & q)
+template<typename T, typename U>
+inline typename std::enable_if<std::is_convertible<T,U>::value, const quantity<U>>::type operator*(T const v, quantity<U> const & q)
 {
 	return q * v;
 }
