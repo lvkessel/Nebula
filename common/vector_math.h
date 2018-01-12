@@ -89,6 +89,11 @@ inline PHYSICS real magnitude(vec3 a)
 #endif // CUDA_COMPILING
 }
 
+inline PHYSICS real magnitude_squared(vec3 a)
+{
+	return a.x*a.x + a.y*a.y + a.z*a.z;
+}
+
 inline PHYSICS vec3 normalised(vec3 a)
 {
 #if CUDA_COMPILING
