@@ -1,6 +1,7 @@
 #ifndef __ELECTRON_IONISATION_H_
 #define __ELECTRON_IONISATION_H_
 
+#include <functional>
 #include "../common/util/table_2D.h"
 #include "../common/util/random.h"
 #include "../legacy_thomas/material.hh"
@@ -85,17 +86,43 @@ public:
 		ei._ionisation_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
 		ei._ionisation_table.mem_scope([&](real** ionisation_vector)
 		{
-			auto table = mat.get_table_axes<2>("ionization/binding_icdf");
+			const auto icdf_table = mat.get_table_axes<2>("ionization/binding_icdf");
+
+			// Get outer_shells vector, containing outer-shell energies sorted from low to high.
+			const auto outer_shell_table = mat.get_table_axes<1>("ionization/outer_shells");
+			std::vector<units::quantity<double>> outer_shells;
+			for (double osi : outer_shell_table)
+			{
+				const units::quantity<double> value = osi * outer_shell_table.unit;
+				if (value < 100*units::eV)
+					outer_shells.push_back(value);
+			}
+			std::sort(outer_shells.begin(), outer_shells.end());
+
+			// Create the simulation table
 			for (int y = 0; y < P_cnt; ++y)
 			{
-				const double P = __linspace_P_at(y);
+				const units::quantity<double> P = __linspace_P_at(y) * units::dimensionless;
 				for (int x = 0; x < K_cnt; ++x)
 				{
-					// TODO: support creation of dimensionless quantities from scalars
-					units::quantity<double> binding = table.get_rounddown(__logspace_K_at(x) * units::eV, P*units::dimensionless);
+					const units::quantity<double> K = __logspace_K_at(x)*units::eV;
+					const units::quantity<double> margin = 10 * units::eV; // Magic KB number
 
-					if (!std::isfinite(binding.value))
-						binding = -1 * units::eV;
+					units::quantity<double> binding = -1 * units::eV;
+					if (K > 100*units::eV)
+					{
+						binding = icdf_table.get_rounddown(K + margin, P);
+						if (binding < 50*units::eV || !std::isfinite(binding.value))
+							binding = -1 * units::eV;
+					}
+					if (binding < 0*units::eV)
+					{
+						// Find largest outer shell less than or equal to K
+						auto outer_shell_iterator = std::lower_bound(outer_shells.rbegin(),
+							outer_shells.rend(), K, std::greater<units::quantity<double>>{});
+						if (outer_shell_iterator != outer_shells.rend())
+							binding = (*outer_shell_iterator);
+					}
 
 					ionisation_vector[y][x] = real(binding / units::eV);
 				}
