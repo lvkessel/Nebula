@@ -165,8 +165,8 @@ namespace
 		// Read the actual data + units
 		auto table = construct_unroll<hdf5_file::hdf5_table<N>>(scales);
 		dataset.read(table.data(), H5::PredType::NATIVE_DOUBLE);
-		table.set_units(parser.parse_unit(read_attribute_string(
-			dataset.openAttribute("units"))));
+		table.unit = parser.parse_unit(read_attribute_string(
+			dataset.openAttribute("units")));
 		return table;
 	}
 } // anonymous namespace

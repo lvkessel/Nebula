@@ -29,12 +29,12 @@ public:
 	// Construct, given axes.
 	// The dimensions of the underlying nd_array is taken from the size of each axis.
 	nd_array_ax(axis_ts... axes, value_type units)
-		: base_t(axes.size()...), _axes(axes...), _units(units)
+		: base_t(axes.size()...), _axes(axes...), unit(units)
 	{}
 	// TODO: one would normally provide units as a default parameter and omit the definition below.
 	// However, Visual Studio does not seem to like that combination with common/variadic.h's construct_unroll.
 	nd_array_ax(axis_ts... axes)
-		: base_t(axes.size()...), _axes(axes...), _units(units::dimensionless)
+		: base_t(axes.size()...), _axes(axes...), unit(units::dimensionless)
 	{}
 
 	// Get read access to an axis
@@ -48,13 +48,13 @@ public:
 	template<typename... x_ts>
 	value_type get_linear(x_ts... coordinates) const
 	{
-		return get_lin_helper(make_index_sequence<N>(), coordinates...) * _units;
+		return get_lin_helper(make_index_sequence<N>(), coordinates...) * unit;
 	}
 	// Same, but rounding down to the largest element below each index.
 	template<typename... x_ts>
 	value_type get_rounddown(x_ts... coordinates) const
 	{
-		return get_rdn_helper(make_index_sequence<N>(), coordinates...) * _units;
+		return get_rdn_helper(make_index_sequence<N>(), coordinates...) * unit;
 	}
 
 	// Log-log interpolation, specifically if there is only one axis
@@ -62,19 +62,16 @@ public:
 	value_type get_loglog(x_t x) const
 	{
 		static_assert(sizeof...(axis_ts) == 1, "log-log interpolation only implemented for 1D arrays.");
-		return get_loglog_helper(x) * _units;
+		return get_loglog_helper(x) * unit;
 	}
 
-	// Set the units. This does not convert the underlying data! It merely
-	// assigns a different meaning to the numerical values.
-	void set_units(value_type units)
-	{
-		_units = units;
-	}
+	// The actual data are stored as numbers, without physical units. Units are
+	// stored separately in this variable, which acts as a multiplier when using
+	// the get() functions.
+	value_type unit;
 
 private:
 	std::tuple<axis_ts...> _axes;
-	units::quantity<data_type> _units;
 
 	template<typename... x_ts, size_t... s>
 	T get_lin_helper(index_sequence<s...>, x_ts... coordinates) const
