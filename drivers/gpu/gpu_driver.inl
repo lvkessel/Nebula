@@ -45,7 +45,7 @@ CPU gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::gpu_driver(
 	_geometry(geometry),
 	_intersect(intersect),
 	_num_blocks(1 + particle_capacity/_threads_per_block)
-	
+
 {
 	/*
 	 * Init random states
@@ -221,7 +221,7 @@ __global__ void kernels::init(
 		particles.get_last_triangle(particle_idx),
 		particles.get_material_index(particle_idx)
 	);
-	
+
 	if (next_intersect.isect_triangle == nullptr)
 	{
 		// No triangle intersection: move to scattering position.

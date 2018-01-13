@@ -117,7 +117,7 @@ std::vector<std::pair<particle, int2>> sort_pri_file(std::vector<std::pair<parti
  * Return a pair of vectors (not a vector of pairs), allowing the output
  * of these functions to be fed directly into the simulator.
  */
-std::pair<std::vector<particle>, std::vector<int2>> separate_pairs(std::vector<std::pair<particle, int2>> data)
+std::pair<std::vector<particle>, std::vector<int2>> separate_pairs(std::vector<std::pair<particle, int2>> const & data)
 {
 	std::vector<particle> particle_vec; particle_vec.reserve(data.size());
 	std::vector<int2> pixel_vec; pixel_vec.reserve(data.size());

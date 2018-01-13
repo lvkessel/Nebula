@@ -86,13 +86,12 @@ public:
 
 		// special cases if there is no binding energy:
 		if (binding < 0) {
-			const real band_gap = _band_gap;
-			if (band_gap < 0) {
+			if (_band_gap < 0) {
 				// TODO for metals: excitation of a fermi sea electron
 			}
-			else if (omega0 > band_gap) {
+			else if (omega0 > _band_gap) {
 				// electron excitation across the band gap (see page 78 thesis T.V.)
-				binding = band_gap;
+				binding = _band_gap;
 			}
 			else {
 				// sub-band gap energy loss in semiconductors and insulators (see page 78 thesis T.V.)

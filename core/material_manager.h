@@ -23,7 +23,6 @@ public:
 	// Checks if the material is not a "special" vacuum-type material (see index_enum).
 	// This function only checks if the provided index >= 0, that is, it does not check
 	// if the provided index < _capacity.
-	// TODO: invent nicer name...
 	inline PHYSICS bool is_physical(material_index_t material_idx) const;
 
 	enum index_enum : material_index_t

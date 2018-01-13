@@ -127,7 +127,7 @@ public:
 
 						if (current_particle == nullptr)
 							throw std::runtime_error("Bug! Looking for a parent particle that has been deleted!");
-					}	
+					}
 				}
 
 				// Phew. Send data to stdout.

@@ -12,7 +12,7 @@ public:
 	// where t is the return value of this function.
 	// Returns -1 if there is no intersection.
 	PHYSICS real intersect_ray(vec3 ray_start, vec3 ray_direction) const;
-	
+
 	// Get vertices (r1 and r2 require computation)
 	PHYSICS vec3 r0() const;
 	PHYSICS vec3 r1() const;

@@ -44,7 +44,7 @@ CPU void trilist<gpu_flag>::destroy(trilist<gpu_flag> & geometry)
 template<bool gpu_flag>
 PHYSICS bool trilist<gpu_flag>::in_domain(vec3 pos)
 {
-	return ((pos.x > _AABB_min.x) && (pos.x < _AABB_max.x) 
+	return ((pos.x > _AABB_min.x) && (pos.x < _AABB_max.x)
 		&& (pos.y > _AABB_min.y) && (pos.y < _AABB_max.y)
 		&& (pos.z > _AABB_min.z) && (pos.z < _AABB_max.z));
 }

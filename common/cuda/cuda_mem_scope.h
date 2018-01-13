@@ -51,7 +51,7 @@ CPU void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, 
 
 	// Copy back
 	cudaMemcpy(dev_p, host_p, pitch*height, cudaMemcpyHostToDevice);
-	
+
 	delete[] host_pp;
 	delete[] host_p;
 }

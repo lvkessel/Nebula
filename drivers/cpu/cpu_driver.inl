@@ -54,7 +54,7 @@ void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manage
 	{
 		if (!_particles.active(particle_idx))
 			continue;
-		
+
 		init(particle_idx);
 		intersect(particle_idx);
 		scatter(particle_idx);
@@ -171,7 +171,7 @@ void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manage
 		_particles.get_last_triangle(particle_idx),
 		_particles.get_material_index(particle_idx)
 	);
-	
+
 	if (next_intersect.isect_triangle == nullptr)
 	{
 		// No triangle intersection: move to scattering position.

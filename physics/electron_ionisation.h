@@ -36,7 +36,7 @@ public:
 		{
 			return 1.0*y / (P_cnt - 1);
 		};
-		
+
 		electron_ionisation ei;
 		ei._ionisation_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
 		ei._ionisation_table.mem_scope([&](real** ionisation_vector)

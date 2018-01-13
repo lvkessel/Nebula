@@ -130,7 +130,7 @@ CPU void octree<gpu_flag>::destroy(octree<gpu_flag> & geometry)
 template<bool gpu_flag>
 PHYSICS bool octree<gpu_flag>::in_domain(vec3 pos) const
 {
-	return ((pos.x > _AABB_center.x-_AABB_halfsize.x) && (pos.x < _AABB_center.x+_AABB_halfsize.x) 
+	return ((pos.x > _AABB_center.x-_AABB_halfsize.x) && (pos.x < _AABB_center.x+_AABB_halfsize.x)
 		&& (pos.y > _AABB_center.y-_AABB_halfsize.y) && (pos.y < _AABB_center.y+_AABB_halfsize.y)
 		&& (pos.z > _AABB_center.z-_AABB_halfsize.z) && (pos.z < _AABB_center.z+_AABB_halfsize.z));
 }

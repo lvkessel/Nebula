@@ -16,7 +16,7 @@ template<bool gpu_flag,
 class inelastic_penn
 {
 public:
-	constexpr static bool may_create_se = true;
+	constexpr static bool may_create_se = opt_generate_secondary;
 
 	template<typename particle_t>
 	inline PHYSICS real sample_path(particle_t const & this_particle, util::random_generator<gpu_flag> & rng) const
@@ -113,13 +113,13 @@ public:
 						// Assume that the probability for the SE's energy before
 						// excitation, Ei, is distributed according to the DOS
 						// before multiplied the DOS after excitation; that the
-						// bands are parabolic, and that the SE's direction after
+						// bands are parabolic; and that the SE's direction after
 						// excitation is uniformly distributed.
 
 						// Define x = Ei/omega; f = fermi/omega.
 						// We have p(Ei) ~ sqrt(Ei) * sqrt(Ei + omega), so we
 						// need to sample from sqrt(x(x+1)) between x=0 and x=f.
-						// Knowing sqrt(x^2+x)) < sqrt(x^2+x+1/4) = x + 1/2, we
+						// Knowing sqrt(x^2+x) < sqrt(x^2+x+1/4) = x + 1/2, we
 						// sample from p(x) ~ x + 1/2 and accept a fraction
 						// (x+1/2 - sqrt(x^2+x)) / (x+1/2).
 						// If f < 0.1, we sample from p(x) ~ sqrt(x) instead for
@@ -150,11 +150,11 @@ public:
 								const real U1 = rng.unit();
 								const real U2 = rng.unit();
 								x = (U1 < alpha)
-									? sqrtf(d2*U2 + lower * lower) // x
+									? sqrtr(d2*U2 + lower * lower) // x
 									: d1 * U2 + lower;             // 1
 							}
 							// Reject
-							while (rng.unit() > sqrtf(x*x + x) / (x + .5_r));
+							while (rng.unit() > sqrtr(x*x + x) / (x + .5_r));
 						}
 
 						secondary_particle.kin_energy = x*omega + omega;

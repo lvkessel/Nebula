@@ -39,12 +39,12 @@ public:
 
 	CPU particle_index_t get_running_count() const;
 	CPU particle_index_t get_detected_count() const;
-	
+
 	// Detect_function is called for each particle before it is terminated.
 	// One will typically pass a function that writes interesting data to an output stream.
 	template<typename detect_function>
 	CPU void flush_detected(detect_function function);
-	
+
 private:
 	particle_manager_t _particles;
 	material_manager_t _materials;
