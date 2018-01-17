@@ -168,7 +168,8 @@ int main(int argc, char** argv)
 	}
 	std::clog << "\nframe_size = " << frame_size << " | batch_size = " << batch_size << std::endl;
 
-	std::ofstream of("tmp.bin", std::ofstream::binary);
+	//std::ofstream of("tmp.bin", std::ofstream::binary);
+	std::ostream& of = std::cout;
 
 	for (;;)
 	{
