@@ -1,6 +1,7 @@
 #include "config/config.h"
 #include "core/material.h"
 #include "physics/inelastic_thomas.h"
+#include "physics/inelastic_penn.h"
 #include "physics/elastic_thomas.h"
 #include "physics/intersect_thomas.h"
 
@@ -20,31 +21,34 @@
 
 // Main typedefs
 using geometry_t = nbl::geometry::octree<false>;
-using thomas_scatter_list = scatter_list<
-	nbl::scatter::elastic_thomas<false>,
-	nbl::scatter::inelastic_thomas<false>>;
-using thomas_material = material<thomas_scatter_list>;
+
+using scatter_physics = scatter_list<
+	//nbl::scatter::inelastic_thomas<false>,
+	nbl::scatter::inelastic_penn<false>,
+	nbl::scatter::elastic_thomas<false>
+>;
+using material_t = material<scatter_physics>;
 using intersect_t = intersect_thomas<>;
 
 using driver = nbl::drivers::cpu_driver<
-	thomas_scatter_list,
+	scatter_physics,
 	intersect_t,
 	geometry_t,
 	nbl::drivers::cascade_saving_particle_manager
 >;
 
 // TODO: material not really destroyed.
-thomas_material load_material(std::string const & filename)
+material_t load_material(std::string const & filename)
 {
 	if (filename.back() == 't')
 	{
 		// Old .mat file format
-		return thomas_material(load_mat_file(filename));
+		return material_t(load_mat_file(filename));
 	}
 	else
 	{
 		// New HDF5 file format
-		return thomas_material(nbl::hdf5_file(filename));
+		return material_t(nbl::hdf5_file(filename));
 	}
 }
 
@@ -85,7 +89,7 @@ int main(int argc, char** argv)
 
 
 	// Load materials
-	std::vector<thomas_material> materials;
+	std::vector<material_t> materials;
 	for (int parameter_idx = 3; parameter_idx < argc; ++parameter_idx)
 		materials.push_back(load_material(argv[parameter_idx]));
 

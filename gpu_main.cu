@@ -1,6 +1,7 @@
 #include "config/config.h"
 #include "core/material.h"
 #include "physics/inelastic_thomas.h"
+#include "physics/inelastic_penn.h"
 #include "physics/elastic_thomas.h"
 #include "physics/intersect_thomas.h"
 
@@ -23,39 +24,41 @@
 // Main typedefs
 using geometry_t = nbl::geometry::octree<USE_GPU>;
 
-using thomas_scatter_list = scatter_list<
-	nbl::scatter::inelastic_thomas<USE_GPU>,
+using scatter_physics = scatter_list<
+	//nbl::scatter::inelastic_thomas<USE_GPU>,
+	nbl::scatter::inelastic_penn<USE_GPU>,
 	nbl::scatter::elastic_thomas<USE_GPU>
 >;
-using thomas_material = material<thomas_scatter_list>;
+using material_t = material<scatter_physics>;
+
 using intersect_t = intersect_thomas<>;
 
 #if USE_GPU
 using driver = nbl::drivers::gpu_driver<
-	thomas_scatter_list,
+	scatter_physics,
 	intersect_t,
 	geometry_t
 >;
 #else
 using driver = nbl::drivers::cpu_driver<
-	thomas_scatter_list,
+	scatter_physics,
 	intersect_t,
 	geometry_t
 >;
 #endif
 
 // TODO: material not really destroyed.
-thomas_material load_material(std::string const & filename)
+material_t load_material(std::string const & filename)
 {
 	if (filename.back() == 't')
 	{
 		// Old .mat file format
-		return thomas_material(load_mat_file(filename));
+		return material_t(load_mat_file(filename));
 	}
 	else
 	{
 		// New HDF5 file format
-		return thomas_material(nbl::hdf5_file(filename));
+		return material_t(nbl::hdf5_file(filename));
 	}
 }
 
@@ -106,7 +109,7 @@ int main(int argc, char** argv)
 	size_t primaries_to_go = primaries.size();
 
 	// Load materials
-	std::vector<thomas_material> materials;
+	std::vector<material_t> materials;
 	for (int parameter_idx = 3; parameter_idx < argc; ++parameter_idx)
 		materials.push_back(load_material(argv[parameter_idx]));
 
