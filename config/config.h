@@ -23,7 +23,7 @@
 // TODO: Put these somewhere nicer.
 // Define range and resolution for cross section tables.
 GLOBAL_CONSTANT real K_min = 1;    // eV
-GLOBAL_CONSTANT real K_max = 10e3; // eV
+GLOBAL_CONSTANT real K_max = 50e3; // eV
 GLOBAL_CONSTANT int K_cnt = 1024;
 GLOBAL_CONSTANT int P_cnt = 1024;
 

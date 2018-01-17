@@ -249,7 +249,7 @@ public:
 		inel._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
 		inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 		{
-			auto inelastic_imfp = mat.get_table_axes<1>("inelastic/imfp");
+			auto inelastic_imfp = mat.get_table_axes<1>("inelastic_kieft/imfp");
 			for (int x = 0; x < K_cnt; ++x)
 			{
 				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(__logspace_K_at(x) * units::eV) * units::nm);
@@ -260,7 +260,7 @@ public:
 		inel._log_icdf_table.mem_scope([&](real** icdf_vector)
 		{
 			auto fermi = mat.get_property_quantity("fermi");
-			auto inelastic_icdf = mat.get_table_axes<2>("inelastic/w0_icdf");
+			auto inelastic_icdf = mat.get_table_axes<2>("inelastic_kieft/w0_icdf");
 			for (int y = 0; y < P_cnt; ++y)
 			{
 				const double P = __linspace_P_at(y);

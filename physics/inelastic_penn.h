@@ -294,7 +294,7 @@ public:
 		inel._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
 		inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 		{
-			auto inelastic_imfp = mat.get_table_axes<1>("penn/imfp");
+			auto inelastic_imfp = mat.get_table_axes<1>("full_penn/imfp");
 			for (int x = 0; x < K_cnt; ++x)
 			{
 				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(__logspace_K_at(x, K_cnt) * units::eV) * units::nm);
@@ -305,7 +305,7 @@ public:
 		inel._log_omega_icdf_table.mem_scope([&](real** icdf_vector)
 		{
 			auto fermi = mat.get_property_quantity("fermi");
-			auto inelastic_icdf = mat.get_table_axes<2>("penn/omega_icdf");
+			auto inelastic_icdf = mat.get_table_axes<2>("full_penn/omega_icdf");
 			for (int y = 0; y < P_cnt; ++y)
 			{
 				const units::quantity<double> P = __linspace_P_at(y, P_cnt) * units::dimensionless;
@@ -325,7 +325,7 @@ public:
 		inel._q_icdf_table = util::table_3D<real, gpu_flag>::create(logr(K_min), logr(K_max), 512, 0, 1, 512, 0, 1, 512);
 		inel._q_icdf_table.mem_scope([&](real*** icdf_vector)
 		{
-			auto inelastic_icdf = mat.get_table_axes<3>("penn/q_icdf");
+			auto inelastic_icdf = mat.get_table_axes<3>("full_penn/q_icdf");
 			for (int z = 0; z < 512; ++z)
 			{
 				const units::quantity<double> P = __linspace_P_at(z, 512)*units::dimensionless;
