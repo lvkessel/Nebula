@@ -12,7 +12,9 @@
 
 namespace nbl { namespace scatter {
 
-template<bool gpu_flag>
+template<bool gpu_flag,
+	bool opt_acoustic_phonon_loss = true,
+	bool opt_atomic_recoil_loss = true>
 class elastic_thomas
 {
 public:
@@ -35,7 +37,7 @@ public:
 		util::random_generator<gpu_flag>& rng) const
 	{
 		// Retrieve current particle from global memory
-		//auto this_particle = particle_mgr[particle_idx];
+		auto this_particle = particle_mgr[particle_idx];
 
 		real cos_theta, sin_theta;
 		{// draw a random elastic scatter angle by interpolating tables
@@ -46,32 +48,36 @@ public:
 		}
 
 		// normalize current direction
-		const auto this_particle_dir = normalised(particle_mgr[particle_idx].dir);
+		this_particle.dir = normalised(this_particle.dir);
 
 		// find a random normal vector to the current direction of flight and normalize
-		vec3 normal_dir = normalised(make_normal_vec(this_particle_dir, rng.phi()));
+		vec3 normal_dir = normalised(make_normal_vec(this_particle.dir, rng.phi()));
 
 		// determine the scattered direction
-		particle_mgr[particle_idx].dir = this_particle_dir * cos_theta + normal_dir * sin_theta;
+		this_particle.dir = this_particle.dir * cos_theta + normal_dir * sin_theta;
 
-/*		// special cases for phonon scattering and atom recoil energy loss.
+		// special cases for phonon scattering and atom recoil energy loss.
 		// the energy domain for phonon scattering is exactly the same as in the
 		//   original Kieft & Bosch code.
 		// the amount of energy loss for phonons can be found in the thesis of T.V. Eq. 3.116.
 		// TODO: set variable domain for phonon scattering
-		if (K < 200) {
-			if (opt.acoustic_phonon_loss_flag)
-				pstruct.K_energy_dev_p[particle_idx] = K - fminf(50e-3f, mstruct.phonon_loss_dev_p[material_idx]);
+		if (this_particle.kin_energy < 200)
+		{
+			if (opt_acoustic_phonon_loss)
+				this_particle.kin_energy -= minr(50e-3f, _phonon_loss);
 		}
-		else {
+		else
+		{
 			// account for atomic recoil (only added for compliance with Kieft & Bosch code)
 			// There is no reference for this formula, can only be found in the Kieft & Bosch code.
-			// Default behaviour does not include this effect.
-			if (opt.atomic_recoil_loss_flag) {
-				//            #warning "fixed energy loss due to atom recoil assumes silicon material"
-				pstruct.K_energy_dev_p[particle_idx] = K - 2.0f*(_me*_NA)*K*(1.0f - cos_theta) / 28.1f;
+			if (opt_atomic_recoil_loss)
+			{
+				this_particle.kin_energy -= _recoil_const*(1 - cos_theta) * this_particle.kin_energy;
 			}
-		}*/
+		}
+
+		// Store the scattered particle in memory
+		particle_mgr[particle_idx] = this_particle;
 	}
 
 	static CPU elastic_thomas create(material_legacy_thomas const & mat)
@@ -126,6 +132,11 @@ public:
 			}
 		});
 
+		el._phonon_loss = mat.phonon_loss()/constant::ec;
+		el._recoil_const = real(2 * 9.109282e-28 * 6.02214086e+23 / 28.1);
+		//                      2 * el mass      * Avogadro const / silicon A
+		// Hard-coded A for silicon: not in the material file. This is also what e-scatter does.
+
 		return el;
 	}
 
@@ -167,6 +178,11 @@ public:
 			}
 		});
 
+		el._phonon_loss = static_cast<real>(mat.get_property_quantity("phonon_loss") / units::eV);
+		el._recoil_const = 2 * static_cast<real>(
+			2 * (9.109383e-28 * units::g) // 2 * (electron mass)
+			/ mat.get_property_quantity("effective_A"));
+
 		return el;
 	}
 
@@ -184,6 +200,9 @@ private:
 	//   - x axis: log(kinetic energy / eV)
 	//   - y axis: cum. probability
 	util::table_2D<real, gpu_flag> _icdf_table;
+
+	real _phonon_loss;
+	real _recoil_const;
 };
 
 }} // namespace nbl::scatter
