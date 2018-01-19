@@ -36,8 +36,16 @@ public:
 	hdf5_file(std::string const & filename);
 
 	// Get property, either a string or a quantity
+	// Throws exception if not found
 	std::string get_property_string(std::string const & name) const;
 	units::quantity<double> get_property_quantity(std::string const & name,
+		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
+
+	// Get property, either a string or a quantity
+	// Returns _default if not found
+	std::string get_property_string(std::string const & name, std::string const & _default) const;
+	units::quantity<double> get_property_quantity(std::string const & name,
+		units::quantity<double> const & _default,
 		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
 
 	// Get an N-dimensional dataset, with units and axis information.

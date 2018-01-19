@@ -289,7 +289,7 @@ public:
 		inelastic_penn inel;
 
 		inel._fermi = static_cast<real>(mat.get_property_quantity("fermi") / units::eV);
-		inel._band_gap = static_cast<real>(mat.get_property_quantity("band_gap") / units::eV);
+		inel._band_gap = static_cast<real>(mat.get_property_quantity("band_gap", -1*units::eV) / units::eV);
 
 		inel._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
 		inel._log_imfp_table.mem_scope([&](real* imfp_vector)

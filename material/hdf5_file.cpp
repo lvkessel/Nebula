@@ -209,6 +209,36 @@ units::quantity<double> hdf5_file::get_property_quantity(
 	}
 }
 
+std::string hdf5_file::get_property_string(
+	std::string const & name,
+	std::string const & _default) const
+{
+	try
+	{
+		return read_attribute_string(_file.openAttribute(name));
+	}
+	catch (H5::Exception const &)
+	{
+		return _default;
+	}
+}
+units::quantity<double> hdf5_file::get_property_quantity(
+	std::string const & name,
+	units::quantity<double> const & _default,
+	units::unit_parser<double> const & parser) const
+{
+	try
+	{
+		return read_attribute_quantity(
+			_file.openAttribute(name),
+			parser);
+	}
+	catch (H5::Exception const &)
+	{
+		return _default;
+	}
+}
+
 template<size_t N>
 hdf5_file::hdf5_table<N> hdf5_file::get_table_axes(
 	std::string const & name,
