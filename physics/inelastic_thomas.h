@@ -1,6 +1,7 @@
 #ifndef __INELASTIC_THOMAS_H_
 #define __INELASTIC_THOMAS_H_
 
+#include "../core/particle.h"
 #include "../common/util/table_1D.h"
 #include "../common/util/table_2D.h"
 #include "electron_ionisation.h"
@@ -17,8 +18,7 @@ class inelastic_thomas
 public:
 	constexpr static bool may_create_se = opt_generate_secondary;
 
-	template<typename particle_t>
-	inline PHYSICS real sample_path(particle_t const & this_particle, util::random_generator<gpu_flag> & rng) const
+	inline PHYSICS real sample_path(particle const & this_particle, util::random_generator<gpu_flag> & rng) const
 	{
 		// Get inverse mean free path for this kinetic energy
 		const real imfp = expr(_log_imfp_table.get(logr(this_particle.kin_energy)));

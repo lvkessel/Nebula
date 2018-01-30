@@ -2,6 +2,7 @@
 #define __INELASTIC_PENN_H_
 
 #include <functional>
+#include "../core/particle.h"
 #include "../common/util/table_1D.h"
 #include "../common/util/table_2D.h"
 #include "../common/util/table_3D.h"
@@ -18,8 +19,7 @@ class inelastic_penn
 public:
 	constexpr static bool may_create_se = opt_generate_secondary;
 
-	template<typename particle_t>
-	inline PHYSICS real sample_path(particle_t const & this_particle, util::random_generator<gpu_flag> & rng) const
+	inline PHYSICS real sample_path(particle const & this_particle, util::random_generator<gpu_flag> & rng) const
 	{
 		// Get inverse mean free path for this kinetic energy
 		const real imfp = expr(_log_imfp_table.get(logr(this_particle.kin_energy)));

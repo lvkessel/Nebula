@@ -1,9 +1,6 @@
 #include "config/config.h"
+#include "physics_config.h"
 #include "core/material.h"
-#include "physics/inelastic_thomas.h"
-#include "physics/inelastic_penn.h"
-#include "physics/elastic_thomas.h"
-#include "physics/intersect_thomas.h"
 
 #include "drivers/cpu/cpu_driver.h"
 #include "drivers/tagging/cascade_saving_particle_manager.h"
@@ -21,17 +18,10 @@
 
 // Main typedefs
 using geometry_t = nbl::geometry::octree<false>;
-
-using scatter_physics = scatter_list<
-	//nbl::scatter::inelastic_thomas<false>,
-	nbl::scatter::inelastic_penn<false>,
-	nbl::scatter::elastic_thomas<false>
->;
-using material_t = material<scatter_physics>;
-using intersect_t = intersect_thomas<>;
+using material_t = material<scatter_physics<false>>;
 
 using driver = nbl::drivers::cpu_driver<
-	scatter_physics,
+	scatter_physics<false>,
 	intersect_t,
 	geometry_t,
 	nbl::drivers::cascade_saving_particle_manager

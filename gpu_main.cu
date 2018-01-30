@@ -1,9 +1,6 @@
 #include "config/config.h"
+#include "physics_config.h"
 #include "core/material.h"
-#include "physics/inelastic_thomas.h"
-#include "physics/inelastic_penn.h"
-#include "physics/elastic_thomas.h"
-#include "physics/intersect_thomas.h"
 
 #include "drivers/gpu/gpu_driver.h"
 #include "drivers/cpu/cpu_driver.h"
@@ -23,25 +20,18 @@
 
 // Main typedefs
 using geometry_t = nbl::geometry::octree<USE_GPU>;
+using material_t = material<scatter_physics<USE_GPU>>;
 
-using scatter_physics = scatter_list<
-	//nbl::scatter::inelastic_thomas<USE_GPU>,
-	nbl::scatter::inelastic_penn<USE_GPU>,
-	nbl::scatter::elastic_thomas<USE_GPU>
->;
-using material_t = material<scatter_physics>;
-
-using intersect_t = intersect_thomas<>;
 
 #if USE_GPU
 using driver = nbl::drivers::gpu_driver<
-	scatter_physics,
+	scatter_physics<USE_GPU>,
 	intersect_t,
 	geometry_t
 >;
 #else
 using driver = nbl::drivers::cpu_driver<
-	scatter_physics,
+	scatter_physics<USE_GPU>,
 	intersect_t,
 	geometry_t
 >;

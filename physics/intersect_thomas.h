@@ -3,6 +3,8 @@
 
 // TODO: store barrier here.
 
+#include "../core/triangle.h"
+
 template<
 	bool opt_quantum_transmission = true,
 	bool opt_interface_refraction = true,
