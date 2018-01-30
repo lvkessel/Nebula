@@ -3,7 +3,7 @@
 
 #include "../../core/material_manager.h"
 #include "../../common/util/random.h"
-#include "cpu_particle_manager.h"
+#include "simple_cpu_particle_manager.h"
 
 namespace nbl { namespace drivers {
 
@@ -11,7 +11,7 @@ template<
 	typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t,
-	template<typename> class particle_manager = cpu_particle_manager
+	template<typename> class particle_manager = simple_cpu_particle_manager
 >
 class cpu_driver
 {

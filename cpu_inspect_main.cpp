@@ -3,7 +3,7 @@
 #include "core/material.h"
 
 #include "drivers/cpu/cpu_driver.h"
-#include "drivers/tagging/cascade_saving_particle_manager.h"
+#include "drivers/cpu/tracking_cpu_particle_manager.h"
 
 #include "geometry/trilist.h"
 #include "geometry/octree.h"
@@ -24,7 +24,7 @@ using driver = nbl::drivers::cpu_driver<
 	scatter_physics<false>,
 	intersect_t,
 	geometry_t,
-	nbl::drivers::cascade_saving_particle_manager
+	nbl::drivers::tracking_cpu_particle_manager
 >;
 
 // TODO: material not really destroyed.

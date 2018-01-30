@@ -5,7 +5,12 @@
 
 namespace nbl { namespace drivers {
 
-template<typename material_manager_t>
+/*
+ * Generic CPU particle manager.
+ * Serves as a base class for a "simple" CPU particle manager
+ * and a version with extended tracking facilities.
+ */
+template<typename material_manager_t, typename additional_data>
 class cpu_particle_manager
 {
 public:
@@ -62,17 +67,47 @@ public:
 	inline PHYSICS void set_intersect_event(particle_index_t i, intersect_event event);
 
 protected:
-	struct particle_struct
+	/*
+	 * particle_struct holds relevant data for each particle.
+	 * It has a template parameter, T, which is inherited from if not void.
+	 * This can be used to store additional data.
+	 *
+	 * The int template parameter is there to make sure that particle_struct<void>
+	 * is a PARTIAL specialization. For some reason, that's allowed, while a full
+	 * specialization is not.
+	 */
+	template<typename T, int = 0>
+	struct particle_struct : T
 	{
 		status_t status;
 		uint8_t next_scatter;
 		material_index_t current_material;
 		particle particle_data;
-		primary_tag_t tag;
+		primary_tag_t primary_tag;
+		triangle* last_triangle;
+
+		// Provide constructor.
+		// P0017R1 (C++17) makes this superfluous.
+		particle_struct(T const & extended_data,
+			status_t status, uint8_t next_scatter, material_index_t current_material,
+			particle particle_data, primary_tag_t primary_tag, triangle* last_triangle)
+			: T(extended_data), status(status), next_scatter(next_scatter),
+			current_material(current_material), particle_data(particle_data),
+			primary_tag(primary_tag), last_triangle(last_triangle)
+		{}
+	};
+	template<int i>
+	struct particle_struct<void, i>
+	{
+		status_t status;
+		uint8_t next_scatter;
+		material_index_t current_material;
+		particle particle_data;
+		primary_tag_t primary_tag;
 		triangle* last_triangle;
 	};
 
-	std::vector<particle_struct> data;
+	std::vector<particle_struct<additional_data>> data;
 
 	enum status_enum : status_t
 	{

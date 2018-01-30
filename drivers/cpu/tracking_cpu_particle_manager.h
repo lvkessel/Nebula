@@ -1,7 +1,7 @@
-#ifndef __CASCADE_SAVING_PARTICLE_MANAGER_H_
-#define __CASCADE_SAVING_PARTICLE_MANAGER_H_
+#ifndef __TRACKING_CPU_PARTICLE_MANAGER_H_
+#define __TRACKING_CPU_PARTICLE_MANAGER_H_
 
-#include "tagging_particle_manager.h"
+#include "cpu_particle_manager.h"
 #include <tuple>
 
 namespace nbl { namespace drivers {
@@ -18,42 +18,63 @@ struct event_info
 // This is the additional data to be stored for every electron
 struct cascade_info
 {
-	// TODO: data type
-	uint64_t parent_unique_tag = 0; // Unique tag that belonged to the parent
-	size_t parent_create_event = 0; // Index to the parent's "events" vector in which this electron was created
+	uint64_t unique_tag;            // Unique tag belonging to this particle
+	uint64_t parent_unique_tag;     // Unique tag that belonged to the parent
+	size_t parent_create_event;     // Index to the parent's "events" vector in which this electron was created
 	std::vector<event_info> events; // Vector of all scattering events
 };
 
 template<typename material_manager_t>
-class cascade_saving_particle_manager
-	: public tagging_particle_manager<material_manager_t, cascade_info>
+class tracking_cpu_particle_manager
+	: public cpu_particle_manager<material_manager_t, cascade_info>
 {
 public:
-	using base_t = tagging_particle_manager<material_manager_t, cascade_info>;
+	using base_t = cpu_particle_manager<material_manager_t, cascade_info>;
 	using typename base_t::particle_index_t;
+	using typename base_t::primary_tag_t;
 	using base_t::data;
 
-	cascade_saving_particle_manager(base_t const & base)
+	tracking_cpu_particle_manager(base_t const & base)
 		: base_t(base)
 	{}
 
-	static cascade_saving_particle_manager create()
+	static tracking_cpu_particle_manager create()
 	{
-		cascade_saving_particle_manager<material_manager_t> manager(base_t::create());
+		tracking_cpu_particle_manager<material_manager_t> manager(base_t::create());
 		return manager;
 	}
-	static void destroy(cascade_saving_particle_manager & manager)
+	static void destroy(tracking_cpu_particle_manager & manager)
 	{
 		base_t::destroy(manager);
 	}
 
-	// No need to override push: default constructor for cascade_info is OK.
-	// Do need to override create_secondary: need to provide appropriate parent tag and event # of creation
+	particle_index_t push(particle* particles, primary_tag_t* tags, particle_index_t N)
+	{
+		data.reserve(data.size() + N);
+		for (particle_index_t i = 0; i < N; ++i)
+		{
+			data.push_back({{++next_unique_tag, 0, 0, {}},
+				base_t::NO_EVENT,
+				0,
+				-123,  // TODO: vacuum
+				particles[i],
+				tags[i],
+				nullptr
+			});
+		}
+		return N;
+	}
+
 	inline PHYSICS void create_secondary(particle_index_t primary_idx, particle secondary_particle)
 	{
-		base_t::create_secondary(primary_idx, secondary_particle);
-		data.back().parent_unique_tag = data[primary_idx].unique_tag;
-		data.back().parent_create_event = data[primary_idx].events.size() - 1;
+		data.push_back({{++next_unique_tag, data[primary_idx].unique_tag, data[primary_idx].events.size()-1, {}},
+			base_t::NEW_SECONDARY,
+			0,
+			base_t::get_material_index(primary_idx),
+			secondary_particle,
+			data[primary_idx].primary_tag,
+			nullptr
+		});
 	}
 
 	// We want to store all scattering events
@@ -184,8 +205,10 @@ public:
 	}
 #endif
 
+protected:
+	uint64_t next_unique_tag = 0;
 };
 
 }} // namespace nbl::drivers
 
-#endif // __CASCADE_SAVING_PARTICLE_MANAGER_H_
+#endif // __TRACKING_CPU_PARTICLE_MANAGER_H_
