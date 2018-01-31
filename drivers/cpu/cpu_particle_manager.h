@@ -69,15 +69,17 @@ public:
 protected:
 	/*
 	 * particle_struct holds relevant data for each particle.
-	 * It has a template parameter, T, which is inherited from if not void.
-	 * This can be used to store additional data.
-	 *
-	 * The int template parameter is there to make sure that particle_struct<void>
-	 * is a PARTIAL specialization. For some reason, that's allowed, while a full
-	 * specialization is not.
+	 * It inherits from the "additional_data" template parameter, which may be
+	 * void. This mechanism allows derived particle managers to store additional
+	 * data in addition to the necessities.
 	 */
-	template<typename T, int = 0>
-	struct particle_struct : T
+
+	// Boilerplate: inherit from "empty" if additional_data is void.
+	struct empty {};
+	template<typename T>
+	using optional_base_t = typename std::conditional<std::is_void<T>::value, empty, T>::type;
+
+	struct particle_struct : optional_base_t<additional_data>
 	{
 		status_t status;
 		uint8_t next_scatter;
@@ -86,28 +88,19 @@ protected:
 		primary_tag_t primary_tag;
 		triangle* last_triangle;
 
-		// Provide constructor.
-		// P0017R1 (C++17) makes this superfluous.
-		particle_struct(T const & extended_data,
+		using base_t = optional_base_t<additional_data>;
+
+		particle_struct(
 			status_t status, uint8_t next_scatter, material_index_t current_material,
-			particle particle_data, primary_tag_t primary_tag, triangle* last_triangle)
-			: T(extended_data), status(status), next_scatter(next_scatter),
+			particle particle_data, primary_tag_t primary_tag, triangle* last_triangle,
+			base_t const & add = {})
+			: base_t(add), status(status), next_scatter(next_scatter),
 			current_material(current_material), particle_data(particle_data),
 			primary_tag(primary_tag), last_triangle(last_triangle)
 		{}
 	};
-	template<int i>
-	struct particle_struct<void, i>
-	{
-		status_t status;
-		uint8_t next_scatter;
-		material_index_t current_material;
-		particle particle_data;
-		primary_tag_t primary_tag;
-		triangle* last_triangle;
-	};
 
-	std::vector<particle_struct<additional_data>> data;
+	std::vector<particle_struct> data;
 
 	enum status_enum : status_t
 	{

@@ -59,7 +59,7 @@ void cpu_particle_manager<material_manager_t, additional_data>::flush_terminated
 	data.erase
 	(
 		std::remove_if(data.begin(), data.end(),
-			[](particle_struct<additional_data> const & x) -> bool
+			[](particle_struct const & x) -> bool
 			{ return x.status == TERMINATED; }),
 		data.end()
 	);
@@ -75,14 +75,14 @@ auto cpu_particle_manager<material_manager_t, additional_data>::get_running_coun
 {
 	return static_cast<particle_index_t>(
 	std::count_if(data.begin(), data.end(),
-		[](particle_struct<additional_data> const & x) -> bool
+		[](particle_struct const & x) -> bool
 		{ return x.status != TERMINATED && x.status != DETECTED; }));
 }
 template<typename material_manager_t, typename additional_data>
 auto cpu_particle_manager<material_manager_t, additional_data>::get_detected_count() const -> particle_index_t
 {
 	return std::count_if(data.begin(), data.end(),
-		[](particle_struct<additional_data> const & x) -> bool
+		[](particle_struct const & x) -> bool
 		{ return x.status == DETECTED; });
 }
 
