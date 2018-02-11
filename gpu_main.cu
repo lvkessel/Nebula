@@ -1,6 +1,7 @@
 #include "config/config.h"
 #include "physics_config.h"
 #include "core/material.h"
+#include "common/cli_params.h"
 
 #include "drivers/gpu/gpu_driver.h"
 #include "drivers/cpu/cpu_driver.h"
@@ -55,21 +56,31 @@ material_t load_material(std::string const & filename)
 int main(int argc, char** argv)
 {
 	// Settings
-	const size_t capacity = 200000;
-	const size_t prescan_size = 1000;
-	const real batch_factor = .9_r;
+	size_t capacity = 200000;
+	size_t prescan_size = 1000;
+	real batch_factor = .9_r;
 
-	const std::string usage(std::string("Usage: ") + argv[0] +
-		"<geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]");
+	cli_params p(argc, argv);
+	p.get_optional_flag("capacity", capacity);
+	p.get_optional_flag("prescan-size", prescan_size);
+	p.get_optional_flag("batch-factor", batch_factor);
 
-	if (argc <= 3)
+	const std::string usage("Usage: " + p.get_program_name() +
+		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n" +
+		"Options:\n"
+		"\t--capacity     [200000]\n"
+		"\t--prescan-size [1000]\n"
+		"\t--batch-factor [0.9]\n");
+
+	std::vector<std::string> pos_flags = p.get_positional();
+	if (pos_flags.size() < 3 || capacity <= 0 || prescan_size <= 0 || batch_factor <= 0)
 	{
 		std::clog << usage << std::endl;
 		return 1;
 	}
 
 	// Load geometry
-	std::vector<triangle> triangles = load_tri_file(argv[1]);
+	std::vector<triangle> triangles = load_tri_file(pos_flags[0]);
 	if (triangles.empty())
 	{
 		std::clog << "Error: could not load triangles!\n" << usage << std::endl;
@@ -81,7 +92,7 @@ int main(int argc, char** argv)
 	// Load primaries
 	std::vector<particle> primaries; std::vector<int2> pixels;
 	std::tie(primaries, pixels) = separate_pairs(
-		sort_pri_file(load_pri_file(argv[2]), prescan_size));
+		sort_pri_file(load_pri_file(pos_flags[1]), prescan_size));
 	if (primaries.empty())
 	{
 		std::clog << "Error: could not load primary electrons!\n" << usage << std::endl;
@@ -100,8 +111,8 @@ int main(int argc, char** argv)
 
 	// Load materials
 	std::vector<material_t> materials;
-	for (int parameter_idx = 3; parameter_idx < argc; ++parameter_idx)
-		materials.push_back(load_material(argv[parameter_idx]));
+	for (size_t parameter_idx = 2; parameter_idx < pos_flags.size(); ++parameter_idx)
+		materials.push_back(load_material(pos_flags[parameter_idx]));
 
 	intersect_t inter;
 
