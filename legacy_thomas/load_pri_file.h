@@ -11,7 +11,7 @@
 struct int2 { int x, y; };
 #endif
 
-std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filename)
+std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filename, vec3 min_pos, vec3 max_pos)
 {
 	std::vector<std::pair<particle, int2>> particle_vec;
 
@@ -24,7 +24,13 @@ std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filenam
 		float buffer[7];
 		int2 pixel;
 		ifs.read(reinterpret_cast<char*>(buffer), sizeof(buffer));
+		if (ifs.gcount() == 0)
+			break; // end of file
+		if (ifs.gcount() != sizeof(buffer))
+			throw std::runtime_error("Unexpected end of primaries file");
 		ifs.read(reinterpret_cast<char*>(&pixel), sizeof(pixel));
+		if (ifs.gcount() != sizeof(pixel))
+			throw std::runtime_error("Unexpected end of primaries file");
 
 		particle primary
 		{
@@ -33,16 +39,27 @@ std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filenam
 			buffer[6]                            // energy
 		};
 
-		if (ifs.eof())
-			break;
+		// NAN < xxx == FALSE, so this form works correctly if NaN is read from the file
+		if (!(primary.pos.x > min_pos.x && primary.pos.y > min_pos.y && primary.pos.z > min_pos.z &&
+			primary.pos.x < max_pos.x && primary.pos.y < max_pos.y && primary.pos.z < max_pos.z))
+			std::clog << "WARNING: primary electron starting outside geometry at ("
+				<< primary.pos.x << ", " << primary.pos.y << ", " << primary.pos.z << ")." << std::endl;
+
+		if (!(primary.kin_energy > EPSILON))
+			std::clog << "WARNING: primary electron starting with low kinetic energy ("
+				<< primary.kin_energy << " eV)." << std::endl;
+
+		if (primary.kin_energy > K_max)
+			std::clog << "WARNING: primary electron starting with kinetic energy higher than the hard-coded limit ("
+				<< (primary.kin_energy/1000) << " keV, max " << (K_max/1000) << " keV). Complain to the developers." << std::endl;
+
+		if (!(std::abs(primary.dir.x) > EPSILON || std::abs(primary.dir.y) > EPSILON || std::abs(primary.dir.z) > EPSILON))
+			std::clog << "WARNING: primary electron starts with unphysical direction vector ("
+				<< primary.dir.x << ", " << primary.dir.y << ", " << primary.dir.z << ")." << std::endl;
 
 		particle_vec.push_back({ primary, pixel });
-
-		//if (particle_vec.size() > 100000)
-		//	break;
 	}
-	ifs.close();
-
+	ifs.close(); 
 	return particle_vec;
 }
 
