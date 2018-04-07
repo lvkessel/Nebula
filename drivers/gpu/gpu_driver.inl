@@ -38,20 +38,18 @@ CPU gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::gpu_driver(
 	particle_index_t particle_capacity,
 	geometry_manager_t geometry,
 	intersect_t intersect,
-	std::vector<material_t> materials
+	std::vector<material_t> materials,
+	seed_t seed
 ) :
 	_particles(particle_manager_t::create(particle_capacity)),
 	_materials(material_manager_t::create(materials)),
 	_geometry(geometry),
 	_intersect(intersect),
 	_num_blocks(1 + particle_capacity/_threads_per_block)
-
 {
 	/*
 	 * Init random states
 	 */
-	// TODO: seed as parameter!!
-	unsigned long long seed = 0;
 	cuda::cuda_new<util::random_generator<true>>(&curand_states, particle_capacity);
 	kernels::init_random_states<<<_num_blocks, _threads_per_block>>>(
 		curand_states, seed, particle_capacity

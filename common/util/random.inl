@@ -6,7 +6,13 @@ template<>
 class _random_state<false>
 {
 public:
-	CPU _random_state() {}
+	using seed_type = typename std::mt19937::result_type;
+	static constexpr seed_type default_seed = std::mt19937::default_seed;
+
+	CPU _random_state(seed_type seed = default_seed)
+		: _generator(seed)
+	{}
+
 	PHYSICS real unit()
 	{
 #if CUDA_COMPILING
@@ -41,7 +47,10 @@ template<>
 class _random_state<true>
 {
 public:
-	__device__ _random_state(unsigned long long seed, unsigned long long sequence)
+	using seed_type = unsigned long long;
+	static constexpr seed_type default_seed = 0;
+
+	__device__ _random_state(seed_type seed, seed_type sequence)
 	{
 		curand_init(seed, sequence, 0, &_rand_state);
 	}

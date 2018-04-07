@@ -8,12 +8,14 @@ template<typename scatter_list_t,
 cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::cpu_driver(
 	geometry_manager_t geometry,
 	intersect_t intersect,
-	std::vector<material_t> materials
+	std::vector<material_t> materials,
+	seed_t seed
 ) :
 	_particles(particle_manager_t::create()),
 	_materials(material_manager_t::create(materials)),
 	_geometry(geometry),
-	_intersect(intersect)
+	_intersect(intersect),
+	rand_state(seed)
 {
 }
 

@@ -29,9 +29,11 @@ public:
 
 	using particle_index_t = typename particle_manager_t::particle_index_t;
 	using status_t = typename particle_manager_t::status_t;
+	using seed_t = typename util::random_generator<true>::seed_type;
 
 	CPU gpu_driver(particle_index_t particle_capacity, geometry_manager_t geom,
-		intersect_t inter, std::vector<material_t> materials);
+		intersect_t inter, std::vector<material_t> materials,
+		seed_t seed = util::random_generator<true>::default_seed);
 	CPU ~gpu_driver();
 
 	inline CPU particle_index_t push(particle* particles, uint32_t* tags, particle_index_t N);

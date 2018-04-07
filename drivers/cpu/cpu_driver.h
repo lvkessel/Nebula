@@ -23,8 +23,10 @@ public:
 	using particle_index_t = typename particle_manager_t::particle_index_t;
 	using primary_tag_t = typename particle_manager_t::primary_tag_t;
 	using status_t = typename particle_manager_t::status_t;
+	using seed_t = typename util::random_generator<false>::seed_type;
 
-	cpu_driver(geometry_manager_t geometry, intersect_t intersect, std::vector<material_t> materials);
+	cpu_driver(geometry_manager_t geometry, intersect_t intersect, std::vector<material_t> materials,
+		seed_t seed = util::random_generator<false>::default_seed);
 	~cpu_driver();
 
 	inline particle_index_t push(particle* particles, primary_tag_t* tags, particle_index_t N);

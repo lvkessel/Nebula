@@ -59,18 +59,21 @@ int main(int argc, char** argv)
 	size_t capacity = 200000;
 	size_t prescan_size = 1000;
 	real batch_factor = .9_r;
+	typename driver::seed_t seed = 0x14f8214e78c7e39b;
 
 	cli_params p(argc, argv);
 	p.get_optional_flag("capacity", capacity);
 	p.get_optional_flag("prescan-size", prescan_size);
 	p.get_optional_flag("batch-factor", batch_factor);
+	p.get_optional_flag("seed", seed);
 
 	const std::string usage("Usage: " + p.get_program_name() +
-		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n" +
+		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n"
 		"Options:\n"
 		"\t--capacity     [200000]\n"
 		"\t--prescan-size [1000]\n"
-		"\t--batch-factor [0.9]\n");
+		"\t--batch-factor [0.9]\n"
+		"\t--seed         [0x14f8214e78c7e39b]\n");
 
 	std::vector<std::string> pos_flags = p.get_positional();
 	if (pos_flags.size() < 3 || capacity <= 0 || prescan_size <= 0 || batch_factor <= 0)
@@ -125,9 +128,9 @@ int main(int argc, char** argv)
 
 	// Prepare driver
 #if USE_GPU
-	driver d(capacity, geometry, inter, materials);
+	driver d(capacity, geometry, inter, materials, seed);
 #else
-	driver d(geometry, inter, materials);
+	driver d(geometry, inter, materials, seed);
 #endif
 
 	// First, do the prescan

@@ -20,6 +20,9 @@ class random_generator
 	: public _random_state<gpu_flag>
 {
 public:
+	// Constructor.
+	// CPU constructor: random_generator(seed = default).
+	// GPU constructor: random_generator(seed, sequence)
 	using _random_state<gpu_flag>::_random_state;
 
 	// Uniformly distributed between 0 and 1
@@ -30,6 +33,9 @@ public:
 
 	// Exponential, with typical constant tau (tau has units of return value)
 	PHYSICS real exponential(real tau);
+
+	using _random_state<gpu_flag>::seed_type;
+	using _random_state<gpu_flag>::default_seed;
 };
 
 }} // namespace nbl::random
