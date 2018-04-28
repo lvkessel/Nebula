@@ -32,10 +32,4 @@
 	#define PHYSICS
 #endif
 
-#if CUDA_COMPILING
-	#define GLOBAL_CONSTANT const __device__
-#else
-	#define GLOBAL_CONSTANT const
-#endif
-
 #endif // __DEVICE_H_

@@ -22,12 +22,12 @@
 
 // TODO: Put these somewhere nicer.
 // Define range and resolution for cross section tables.
-GLOBAL_CONSTANT real K_min = 1;    // eV
-GLOBAL_CONSTANT real K_max = 50e3; // eV
-GLOBAL_CONSTANT int K_cnt = 1024;
-GLOBAL_CONSTANT int P_cnt = 1024;
+constexpr real K_min = 1;    // eV
+constexpr real K_max = 50e3; // eV
+constexpr int K_cnt = 1024;
+constexpr int P_cnt = 1024;
 
 // A constant of mathematics
-GLOBAL_CONSTANT real pi = 3.1415926535897932_r;
+constexpr real pi = 3.1415926535897932_r;
 
 #endif // __CONFIG_H_

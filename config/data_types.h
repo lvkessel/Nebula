@@ -33,7 +33,7 @@ using std::size_t;
 
 // Small value limiting accuracy of numerical computations
 #include <limits>
-GLOBAL_CONSTANT real EPSILON = 10 * std::numeric_limits<real>::epsilon();
+constexpr real EPSILON = 10 * std::numeric_limits<real>::epsilon();
 
 // User-defined literal for using reals: e.g. 1.32_r == (real)1.32.
 constexpr PHYSICS real operator"" _r(long double r)
