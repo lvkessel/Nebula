@@ -32,7 +32,7 @@ public:
 		: base_t(axes.size()...), _axes(axes...), unit(units)
 	{}
 	// TODO: one would normally provide units as a default parameter and omit the definition below.
-	// However, Visual Studio does not seem to like that combination with common/variadic.h's construct_unroll.
+	// However, Visual Studio does not seem to like that combination with common/variadic.h's make_from_tuple.
 	nd_array_ax(axis_ts... axes)
 		: base_t(axes.size()...), _axes(axes...), unit(units::dimensionless)
 	{}

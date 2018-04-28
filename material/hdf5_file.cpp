@@ -91,7 +91,7 @@ namespace
 		H5::DataSpace dataspace = dataset.getSpace();
 		std::array<hsize_t, N> dimensions = get_size<N>(dataspace);
 
-		auto table = construct_unroll<nd_array::nd_array<double,N>>(dimensions);
+		auto table = make_from_tuple<nd_array::nd_array<double,N>>(dimensions);
 		dataset.read(table.data(), H5::PredType::NATIVE_DOUBLE);
 
 		return table;
@@ -163,7 +163,7 @@ namespace
 		const auto scales = get_scales<N>(dataset, dimensions, parser);
 
 		// Read the actual data + units
-		auto table = construct_unroll<hdf5_file::hdf5_table<N>>(scales);
+		auto table = make_from_tuple<hdf5_file::hdf5_table<N>>(scales);
 		dataset.read(table.data(), H5::PredType::NATIVE_DOUBLE);
 		table.unit = parser.parse_unit(read_attribute_string(
 			dataset.openAttribute("units")));

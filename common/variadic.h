@@ -7,6 +7,8 @@
  * like std::make_index_sequence by ourselves.
  */
 
+#include <type_traits>
+
 namespace nbl {
 
 template<size_t...>
@@ -53,9 +55,9 @@ namespace detail
 
 	// Calling constructor for values in tuple
 	template<typename class_t, typename tuple_t, size_t... s>
-	inline class_t construct_unroll_helper(tuple_t t, index_sequence<s...>)
+	inline constexpr class_t make_from_tuple(tuple_t&& t, index_sequence<s...>)
 	{
-		return class_t{ std::get<s>(t)... };
+		return class_t( std::get<s>(std::forward<tuple_t>(t))... );
 	}
 } // namespace detail
 
@@ -75,13 +77,15 @@ template<typename T, size_t N, template<typename...> class TT>
 using repeat = typename detail::repeat<T, TT, make_index_sequence<N>>::type;
 
 
+// Analogous to std::make_from_tuple.
 // Call constructor, unpacking a std::tuple (or std::array) for parameters.
-// A bit like std::apply, only for constructors, and without perfect forwarding.
 template<typename class_t, typename tuple_t>
-inline class_t construct_unroll(tuple_t t)
+inline constexpr class_t make_from_tuple(tuple_t&& t)
 {
-	return detail::construct_unroll_helper<class_t>(t,
-		make_index_sequence<std::tuple_size<tuple_t>::value>());
+	return detail::make_from_tuple<class_t>(std::forward<tuple_t>(t),
+		make_index_sequence<
+			std::tuple_size<typename std::remove_reference<tuple_t>::type>::value
+		>());
 }
 
 } // namespace nbl
