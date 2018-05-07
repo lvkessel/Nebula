@@ -9,9 +9,9 @@ CPU table_2D<T, gpu_flag> table_2D<T, gpu_flag>::create(
 	T* data)
 {
 	table_2D<T, gpu_flag> table;
-	_table_2D_factory<T, gpu_flag>::allocate(table, width, height);
+	detail::table_2D_factory<T, gpu_flag>::allocate(table, width, height);
 	if (data != nullptr)
-		_table_2D_factory<T, gpu_flag>::set(table, data);
+		detail::table_2D_factory<T, gpu_flag>::set(table, data);
 
 	table._x_min = x_min;
 	table._x_step = (width - 1) / (x_max - x_min);
@@ -23,14 +23,14 @@ CPU table_2D<T, gpu_flag> table_2D<T, gpu_flag>::create(
 template<typename T, bool gpu_flag>
 CPU void table_2D<T, gpu_flag>::destroy(table_2D<T, gpu_flag> & table)
 {
-	_table_2D_factory<T, gpu_flag>::free(table);
+	detail::table_2D_factory<T, gpu_flag>::free(table);
 }
 
 template<typename T, bool gpu_flag>
 template<typename callback_function>
 CPU void table_2D<T, gpu_flag>::mem_scope(callback_function callback)
 {
-	_table_2D_factory<T, gpu_flag>::mem_scope(*this, callback);
+	detail::table_2D_factory<T, gpu_flag>::mem_scope(*this, callback);
 }
 
 template<typename T, bool gpu_flag>
@@ -88,84 +88,87 @@ PHYSICS T table_2D<T, gpu_flag>::get_nearest(real x, real y) const
 	return (*this)(near_x, near_y);
 }
 
-template<typename T>
-struct _table_2D_factory<T, false>
+namespace detail
 {
-	inline static CPU void allocate(table_2D<T, false> & table, size_t width, size_t height)
+	template<typename T>
+	struct table_2D_factory<T, false>
 	{
-		table._width = width;
-		table._height = height;
-		table._data = new T[width * height];
-		table._pitch = width * sizeof(T);
-	}
+		inline static CPU void allocate(table_2D<T, false> & table, size_t width, size_t height)
+		{
+			table._width = width;
+			table._height = height;
+			table._data = new T[width * height];
+			table._pitch = width * sizeof(T);
+		}
 
-	inline static CPU void set(table_2D<T, false> & table, T* data)
-	{
-		memcpy(table._data, data, table._width * table._height * sizeof(T));
-	}
+		inline static CPU void set(table_2D<T, false> & table, T* data)
+		{
+			memcpy(table._data, data, table._width * table._height * sizeof(T));
+		}
 
-	template<typename callback_function>
-	inline static CPU void mem_scope(table_2D<T, false> & table, callback_function callback)
-	{
-		// Make indirect array
-		T** host_pp = new T*[table._height];
-		for (size_t y = 0; y < table._height; ++y)
-			host_pp[y] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(table._data) + y * table._pitch);
+		template<typename callback_function>
+		inline static CPU void mem_scope(table_2D<T, false> & table, callback_function callback)
+		{
+			// Make indirect array
+			T** host_pp = new T*[table._height];
+			for (size_t y = 0; y < table._height; ++y)
+				host_pp[y] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(table._data) + y * table._pitch);
 
-		callback(host_pp);
+			callback(host_pp);
 
-		delete[] host_pp;
-	}
+			delete[] host_pp;
+		}
 
-	inline static CPU void free(table_2D<T, false> & table)
-	{
-		delete[] table._data;
-		table._data = nullptr;
-		table._width = 0;
-		table._height = 0;
-		table._pitch = 0;
-	}
-};
+		inline static CPU void free(table_2D<T, false> & table)
+		{
+			delete[] table._data;
+			table._data = nullptr;
+			table._width = 0;
+			table._height = 0;
+			table._pitch = 0;
+		}
+	};
 
 #if CUDA_AVAILABLE
-template<typename T>
-struct _table_2D_factory<T, true>
-{
-	inline static CPU void allocate(table_2D<T, true> & table, size_t width, size_t height)
+	template<typename T>
+	struct table_2D_factory<T, true>
 	{
-		table._width = width;
-		table._height = height;
-		cuda::cuda_new_2D(&table._data, &table._pitch, width, height);
-	}
+		inline static CPU void allocate(table_2D<T, true> & table, size_t width, size_t height)
+		{
+			table._width = width;
+			table._height = height;
+			cuda::cuda_new_2D(&table._data, &table._pitch, width, height);
+		}
 
-	inline static CPU void set(table_2D<T, true> & table, T* data)
-	{
-		const auto width = table._width;
-		const auto height = table._height;
-		cuda::cuda_mem_scope_2D(table._data, table._pitch, width, height,
-			[data, width, height](T** device)
-			{
-				for (size_t y = 0; y < height; ++y)
-					for (size_t x = 0; x < width; ++x)
-						device[y][x] = data[y*width + x];
-			});
-	}
+		inline static CPU void set(table_2D<T, true> & table, T* data)
+		{
+			const auto width = table._width;
+			const auto height = table._height;
+			cuda::cuda_mem_scope_2D(table._data, table._pitch, width, height,
+				[data, width, height](T** device)
+				{
+					for (size_t y = 0; y < height; ++y)
+						for (size_t x = 0; x < width; ++x)
+							device[y][x] = data[y*width + x];
+				});
+		}
 
-	template<typename callback_function>
-	inline static CPU void mem_scope(table_2D<T, true> & table, callback_function callback)
-	{
-		cuda::cuda_mem_scope_2D<T>(table._data, table._pitch, table._width, table._height, callback);
-	}
+		template<typename callback_function>
+		inline static CPU void mem_scope(table_2D<T, true> & table, callback_function callback)
+		{
+			cuda::cuda_mem_scope_2D<T>(table._data, table._pitch, table._width, table._height, callback);
+		}
 
-	inline static CPU void free(table_2D<T, true> & table)
-	{
-		cudaFree(table._data);
-		table._data = nullptr;
-		table._width = 0;
-		table._height = 0;
-		table._pitch = 0;
-	}
-};
+		inline static CPU void free(table_2D<T, true> & table)
+		{
+			cudaFree(table._data);
+			table._data = nullptr;
+			table._width = 0;
+			table._height = 0;
+			table._pitch = 0;
+		}
+	};
 #endif // CUDA_AVAILABLE
+} // namespace detail
 
 }} // namespace nbl::util

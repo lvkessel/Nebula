@@ -5,12 +5,25 @@
 
 #include "../core/triangle.h"
 
+/**
+ * \brief Material boundary intersection.
+ *
+ *   - See doi:10.1088/0022-3727/41/21/215310 (Kieft paper)
+ *   - See doi:10.4233/uuid:f214f594-a21f-4318-9f29-9776d60ab06c (Verduin thesis)
+ *
+ * \tparam opt_quantum_transmission Consider probabilistic transmission
+ * \tparam opt_interface_refraction Consider refraction at interface
+ * \tparam opt_interface_absorption Empirical interface absorption (from Kieft et al.)
+ */
 template<
 	bool opt_quantum_transmission = true,
 	bool opt_interface_refraction = true,
 	bool opt_interface_absorption = false>
 struct intersect_thomas
 {
+	/**
+	 * \brief Perform intersection event.
+	 */
 	template<typename particle_manager, typename material_manager, bool gpu_flag>
 	PHYSICS void execute(material_manager& material_mgr,
 		particle_manager& particle_mgr, typename particle_manager::particle_index_t particle_idx,

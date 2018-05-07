@@ -118,13 +118,14 @@ CPU octree<gpu_flag> octree<gpu_flag>::create(std::vector<triangle> const & tria
 	 */
 
 	// TODO: ensure that triangles.size() fits in octree._N
-	return _octree_factory<gpu_flag>::create(triangles.size(), octree_vec, triangle_p_vec, AABB_min, AABB_max);
+	return detail::octree_factory<gpu_flag>::create(
+		triangles.size(), octree_vec, triangle_p_vec, AABB_min, AABB_max);
 }
 
 template<bool gpu_flag>
 CPU void octree<gpu_flag>::destroy(octree<gpu_flag> & geometry)
 {
-	_octree_factory<gpu_flag>::free(geometry);
+	detail::octree_factory<gpu_flag>::free(geometry);
 }
 
 template<bool gpu_flag>
@@ -342,7 +343,8 @@ PHYSICS vec3 octree<gpu_flag>::AABB_intersect(vec3 pos, vec3 dir, vec3 center, v
 template<bool gpu_flag>
 PHYSICS int octree<gpu_flag>::clz(uint64_t x)
 {
-	static_assert(sizeof(x) == sizeof(long long int), "__clzll intrinsic should be 64 bit?");
+	static_assert(sizeof(x) == sizeof(long long int),
+		"__clzll intrinsic should be 64 bit?");
 #if defined __CUDA_ARCH__
 	return __clzll(x);
 #elif defined __GNUC__
@@ -354,88 +356,91 @@ PHYSICS int octree<gpu_flag>::clz(uint64_t x)
 #endif
 }
 
-template<>
-struct _octree_factory<false>
+namespace detail
 {
-	inline static CPU octree<false> create(octree<false>::triangle_index_t N, std::vector<int> octree_vec,
-		std::vector<const legacy_thomas::triangle*> triangle_p_vec, vec3 AABB_min, vec3 AABB_max)
+	template<>
+	struct octree_factory<false>
 	{
-		auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return { (real)p.x, (real)p.y, (real)p.z }; };
-
-		octree<false> geometry;
-
-		geometry._N = N;
-
-		geometry._octree_data = new int[octree_vec.size()];
-		memcpy(geometry._octree_data, octree_vec.data(), octree_vec.size() * sizeof(int));
-
-		geometry._triangles = reinterpret_cast<triangle*>(malloc(geometry._N * sizeof(triangle)));
-		for (octree<false>::triangle_index_t i = 0; i < triangle_p_vec.size(); ++i)
+		inline static CPU octree<false> create(octree<false>::triangle_index_t N, std::vector<int> octree_vec,
+			std::vector<const legacy_thomas::triangle*> triangle_p_vec, vec3 AABB_min, vec3 AABB_max)
 		{
-			legacy_thomas::triangle const * legacy_tri = triangle_p_vec[i];
-			geometry._triangles[i] = triangle(v3(legacy_tri->A), v3(legacy_tri->B), v3(legacy_tri->C), legacy_tri->in, legacy_tri->out);
-		}
+			auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return { (real)p.x, (real)p.y, (real)p.z }; };
 
-		geometry.set_AABB(AABB_min, AABB_max);
+			octree<false> geometry;
 
-		return geometry;
-	}
+			geometry._N = N;
 
-	inline static CPU void free(octree<false> & geometry)
-	{
-		delete[] geometry._octree_data;
-		::free(geometry._triangles);
+			geometry._octree_data = new int[octree_vec.size()];
+			memcpy(geometry._octree_data, octree_vec.data(), octree_vec.size() * sizeof(int));
 
-		geometry._octree_data = nullptr;
-		geometry._triangles = nullptr;
-		geometry._N = 0;
-	}
-};
-
-#if CUDA_AVAILABLE
-template<>
-struct _octree_factory<true>
-{
-	inline static CPU octree<true> create(octree<true>::triangle_index_t N, std::vector<int> octree_vec,
-		std::vector<const legacy_thomas::triangle*> triangle_p_vec, vec3 AABB_min, vec3 AABB_max)
-	{
-		auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return { (real)p.x, (real)p.y, (real)p.z }; };
-
-		octree<true> geometry;
-
-		geometry._N = N;
-
-		// Copy octree to device
-		cuda::cuda_new<int>(&geometry._octree_data, octree_vec.size());
-		cudaMemcpy(geometry._octree_data, octree_vec.data(), octree_vec.size() * sizeof(int), cudaMemcpyHostToDevice);
-
-		// Copy triangle data to device
-		cuda::cuda_new<triangle>(&geometry._triangles, geometry._N);
-		cuda::cuda_mem_scope<triangle>(geometry._triangles, geometry._N,
-			[&triangle_p_vec, &v3](triangle* device)
-		{
-			for (octree<true>::triangle_index_t i = 0; i < triangle_p_vec.size(); ++i)
+			geometry._triangles = reinterpret_cast<triangle*>(malloc(geometry._N * sizeof(triangle)));
+			for (octree<false>::triangle_index_t i = 0; i < triangle_p_vec.size(); ++i)
 			{
 				legacy_thomas::triangle const * legacy_tri = triangle_p_vec[i];
-				device[i] = triangle(v3(legacy_tri->A), v3(legacy_tri->B), v3(legacy_tri->C), legacy_tri->in, legacy_tri->out);
+				geometry._triangles[i] = triangle(v3(legacy_tri->A), v3(legacy_tri->B), v3(legacy_tri->C), legacy_tri->in, legacy_tri->out);
 			}
-		});
 
-		geometry.set_AABB(AABB_min, AABB_max);
+			geometry.set_AABB(AABB_min, AABB_max);
 
-		return geometry;
-	}
+			return geometry;
+		}
 
-	inline static CPU void free(octree<true> & geometry)
+		inline static CPU void free(octree<false> & geometry)
+		{
+			delete[] geometry._octree_data;
+			::free(geometry._triangles);
+
+			geometry._octree_data = nullptr;
+			geometry._triangles = nullptr;
+			geometry._N = 0;
+		}
+	};
+
+#if CUDA_AVAILABLE
+	template<>
+	struct octree_factory<true>
 	{
-		cudaFree(geometry._octree_data);
-		cudaFree(geometry._triangles);
+		inline static CPU octree<true> create(octree<true>::triangle_index_t N, std::vector<int> octree_vec,
+			std::vector<const legacy_thomas::triangle*> triangle_p_vec, vec3 AABB_min, vec3 AABB_max)
+		{
+			auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return { (real)p.x, (real)p.y, (real)p.z }; };
 
-		geometry._octree_data = nullptr;
-		geometry._triangles = nullptr;
-		geometry._N = 0;
-	}
-};
+			octree<true> geometry;
+
+			geometry._N = N;
+
+			// Copy octree to device
+			cuda::cuda_new<int>(&geometry._octree_data, octree_vec.size());
+			cudaMemcpy(geometry._octree_data, octree_vec.data(), octree_vec.size() * sizeof(int), cudaMemcpyHostToDevice);
+
+			// Copy triangle data to device
+			cuda::cuda_new<triangle>(&geometry._triangles, geometry._N);
+			cuda::cuda_mem_scope<triangle>(geometry._triangles, geometry._N,
+				[&triangle_p_vec, &v3](triangle* device)
+			{
+				for (octree<true>::triangle_index_t i = 0; i < triangle_p_vec.size(); ++i)
+				{
+					legacy_thomas::triangle const * legacy_tri = triangle_p_vec[i];
+					device[i] = triangle(v3(legacy_tri->A), v3(legacy_tri->B), v3(legacy_tri->C), legacy_tri->in, legacy_tri->out);
+				}
+			});
+
+			geometry.set_AABB(AABB_min, AABB_max);
+
+			return geometry;
+		}
+
+		inline static CPU void free(octree<true> & geometry)
+		{
+			cudaFree(geometry._octree_data);
+			cudaFree(geometry._triangles);
+
+			geometry._octree_data = nullptr;
+			geometry._triangles = nullptr;
+			geometry._N = 0;
+		}
+	};
 #endif // CUDA_AVAILABLE
+} // namespace detail
 
 }} // namespace nbl::geometry

@@ -1,40 +1,48 @@
 #ifndef __VECTOR_MATH_H_
 #define __VECTOR_MATH_H_
 
-/*
- * Vector math to be used in host or device code
+/**
+ * \file common/vector_math.h
+ * \brief Vector math functions to be used in simulation code.
  */
 
+/// Vector addition
 inline PHYSICS vec3 operator+(vec3 a, vec3 b)
 {
 	return{ a.x + b.x, a.y + b.y, a.z + b.z };
 }
 
+/// Vector subtraction
 inline PHYSICS vec3 operator-(vec3 a, vec3 b)
 {
 	return{ a.x - b.x, a.y - b.y, a.z - b.z };
 }
 
+/// Vector-scalar multiplication
 inline PHYSICS vec3 operator*(vec3 a, real b)
 {
 	return{ a.x*b, a.y*b, a.z*b };
 }
 
+/// Scalar-vector multiplication
 inline PHYSICS vec3 operator*(real a, vec3 b)
 {
 	return{ a*b.x, a*b.y, a*b.z };
 }
 
+/// Vector-scalar division
 inline PHYSICS vec3 operator/(vec3 a, real b)
 {
 	return a * (1 / b);
 }
 
+/// Negate vector
 inline PHYSICS vec3 operator-(vec3 a)
 {
 	return{ -a.x, -a.y, -a.z };
 }
 
+/// Compound vector addition and assignment
 inline PHYSICS void operator+=(vec3& a, vec3 b)
 {
 	a.x += b.x;
@@ -42,6 +50,7 @@ inline PHYSICS void operator+=(vec3& a, vec3 b)
 	a.z += b.z;
 }
 
+/// Compound vector subtraction and assignment
 inline PHYSICS void operator-=(vec3& a, vec3 b)
 {
 	a.x -= b.x;
@@ -49,6 +58,7 @@ inline PHYSICS void operator-=(vec3& a, vec3 b)
 	a.z -= b.z;
 }
 
+/// Compound vector-scalar multiplication and assignment
 inline PHYSICS void operator*=(vec3& a, real b)
 {
 	a.x *= b;
@@ -56,11 +66,13 @@ inline PHYSICS void operator*=(vec3& a, real b)
 	a.z *= b;
 }
 
+/// Compound vector-scalar division and assignment
 inline PHYSICS void operator/=(vec3& a, real b)
 {
 	a *= 1 / b;
 }
 
+/// Outer product, or cross product, between vectors
 inline PHYSICS vec3 cross_product(vec3 a, vec3 b)
 {
 	return
@@ -71,11 +83,13 @@ inline PHYSICS vec3 cross_product(vec3 a, vec3 b)
 	};
 }
 
+/// Inner product, or dot product, between vectors
 inline PHYSICS real dot_product(vec3 a, vec3 b)
 {
 	return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
+/// Magnitude of a vector
 inline PHYSICS real magnitude(vec3 a)
 {
 #if CUDA_COMPILING
@@ -89,11 +103,13 @@ inline PHYSICS real magnitude(vec3 a)
 #endif // CUDA_COMPILING
 }
 
+/// Magnitude of a vector squared. Faster than taking the magnitude.
 inline PHYSICS real magnitude_squared(vec3 a)
 {
 	return a.x*a.x + a.y*a.y + a.z*a.z;
 }
 
+/// Get normalised version of vector, that is, rescaled such that its magnitude is 1.
 inline PHYSICS vec3 normalised(vec3 a)
 {
 #if CUDA_COMPILING
@@ -108,11 +124,16 @@ inline PHYSICS vec3 normalised(vec3 a)
 #endif // CUDA_COMPILING
 }
 
-/*
- * Find a vector normal to dir.
- * This function finds two axes normal to dir and returns a vector with angle phi in that system.
- * If the input direction is is a unit vector, the returned vector is also a unit vector.
- * Otherwise, the returned vector is not a unit either but it is normal to the input direction.
+/**
+ * \brief Find a vector normal to \p dir.
+ *
+ * This function finds a coordinate system normal to \p dir and returns a vector
+ * with angle \p phi in that system. If the input direction is is a unit vector,
+ * the returned vector is also a unit vector. Otherwise, the returned vector is
+ * not a unit vector, but it is normal to the input direction.
+ *
+ * \param dir Vector to find a normal vector to.
+ * \param phi Rotation angle.
  */
 inline PHYSICS vec3 make_normal_vec(vec3 dir, real phi)
 {
@@ -131,8 +152,11 @@ inline PHYSICS vec3 make_normal_vec(vec3 dir, real phi)
 	return unit_u*cos_phi + unit_v*sin_phi;
 }
 
-/*
- * Create a unit vector, given Euler angles
+/**
+ * \brief Create a unit vector, given Euler angles.
+ *
+ * \param cos_theta Cosine of the angle w.r.t the z axis.
+ * \param phi       Angle in the xy plane.
  */
 inline PHYSICS vec3 make_unit_vec(real cos_theta, real phi)
 {

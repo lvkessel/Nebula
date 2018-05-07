@@ -4,7 +4,10 @@
 ## Getting Nebula
 Via the command-line with git installed:
 ```sh
-git clone https://github.com/lvkessel/nebula.git
+git clone --recurse-submodules https://github.com/lvkessel/nebula.git
+```
+If you forgot the `--recurse-submodules` parameter, you can fix it by doing
+```sh
 git submodule init
 git submodule update
 ```

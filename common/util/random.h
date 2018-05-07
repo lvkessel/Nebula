@@ -1,44 +1,81 @@
 #ifndef __RANDOM_H_
 #define __RANDOM_H_
 
-/*
- * The _random_state class holds the random number generator, which is CPU or
- * GPU specific.
- * Users should create a random_generator class, with template parameter
- * gpu_flag ==  true for a GPU random number generator or false for a CPU random
- * number generator. It inherits from _random_state to provide device-specific
- * functionality.
- */
-
 namespace nbl { namespace util {
 
-template<bool gpu_flag>
-class _random_state;
+namespace detail
+{
+	/**
+	 * \brief Holds the random-number generator, which is CPU or GPU specific
+	 * (set by the template parameter). Should not be used directly.
+	 */
+	template<bool gpu_flag>
+	class random_state;
+}
 
+/**
+ * \brief Random number generator class.
+ *
+ * \tparam gpu_flag Set to true for a random number generator to be used in GPU
+ *                  code, false to generate random numbers for the CPU.
+ *
+ * This class exposes functionality to generate random numbers from certain
+ * distributions.
+ */
 template<bool gpu_flag>
 class random_generator
-	: public _random_state<gpu_flag>
+	: public detail::random_state<gpu_flag>
 {
 public:
-	// Constructor.
-	// CPU constructor: random_generator(seed = default).
-	// GPU constructor: random_generator(seed, sequence)
-	using _random_state<gpu_flag>::_random_state;
+	using base_type = detail::random_state<gpu_flag>;
+	using seed_type = typename base_type::seed_type;
+	using base_type::default_seed;
 
-	// Uniformly distributed between 0 and 1
-	using _random_state<gpu_flag>::unit;
+	/**
+	 * \brief CPU constructor.
+	 */
+	CPU random_generator(seed_type seed = default_seed)
+		: base_type(seed)
+	{
+		static_assert(!gpu_flag,
+			"Cannot call CPU constructor on a GPU random generator");
+	}
+	/**
+	 * \brief GPU constructor.
+	 */
+	GPU random_generator(seed_type seed, seed_type sequence)
+		: base_type(seed, sequence)
+	{
+		static_assert(gpu_flag,
+			"Cannot call GPU constructor on a CPU random generator");
+	}
 
-	// Uniformly distributed between 0 and 2*pi
-	PHYSICS real phi();
+	/**
+	 * \brief Uniformly distributed between 0 and 1
+	 */
+	PHYSICS real unit()
+	{
+		return base_type::unit();
+	}
 
-	// Exponential, with typical constant tau (tau has units of return value)
-	PHYSICS real exponential(real tau);
+	/**
+	 * \brief Uniformly distributed between 0 and 2&pi;
+	 */
+	PHYSICS real phi()
+	{
+		return 2*pi*unit();
+	}
 
-	using _random_state<gpu_flag>::seed_type;
-	using _random_state<gpu_flag>::default_seed;
+	/**
+	 * \brief Exponential, with typical constant tau (tau has units of return value)
+	 */
+	PHYSICS real exponential(real tau)
+	{
+		return -tau*logr(unit());
+	}
 };
 
-}} // namespace nbl::random
+}} // namespace nbl::util
 
 #include "random.inl"
 

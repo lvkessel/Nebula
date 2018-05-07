@@ -32,13 +32,13 @@ CPU trilist<gpu_flag> trilist<gpu_flag>::create(std::vector<triangle> const & tr
 	AABB_min -= vec3{ 1, 1, 1 };
 	AABB_max += vec3{ 1, 1, 1 };
 
-	return _trilist_factory<gpu_flag>::create(triangles, AABB_min, AABB_max);
+	return detail::trilist_factory<gpu_flag>::create(triangles, AABB_min, AABB_max);
 }
 
 template<bool gpu_flag>
 CPU void trilist<gpu_flag>::destroy(trilist<gpu_flag> & geometry)
 {
-	_trilist_factory<gpu_flag>::destroy(geometry);
+	detail::trilist_factory<gpu_flag>::destroy(geometry);
 }
 
 template<bool gpu_flag>
@@ -112,77 +112,80 @@ CPU void trilist<gpu_flag>::set_AABB(vec3 min, vec3 max)
 }
 
 
-template<>
-struct _trilist_factory<false>
+namespace detail
 {
-	inline static CPU trilist<false> create(std::vector<triangle> triangles, vec3 AABB_min, vec3 AABB_max)
+	template<>
+	struct trilist_factory<false>
 	{
-		using trilist_t = trilist<false>;
-		using triangle_index_t = trilist_t::triangle_index_t;
-
-		trilist_t geometry;
-
-		if (triangles.size() > std::numeric_limits<triangle_index_t>::max())
-			throw std::runtime_error("Too many triangles in geometry");
-		geometry._N = static_cast<triangle_index_t>(triangles.size());
-
-		geometry._triangles = reinterpret_cast<triangle*>(malloc(geometry._N * sizeof(triangle)));
-		for (triangle_index_t i = 0; i < triangles.size(); ++i)
+		inline static CPU trilist<false> create(std::vector<triangle> triangles, vec3 AABB_min, vec3 AABB_max)
 		{
-			geometry._triangles[i] = triangles[i];
+			using trilist_t = trilist<false>;
+			using triangle_index_t = trilist_t::triangle_index_t;
+
+			trilist_t geometry;
+
+			if (triangles.size() > std::numeric_limits<triangle_index_t>::max())
+				throw std::runtime_error("Too many triangles in geometry");
+			geometry._N = static_cast<triangle_index_t>(triangles.size());
+
+			geometry._triangles = reinterpret_cast<triangle*>(malloc(geometry._N * sizeof(triangle)));
+			for (triangle_index_t i = 0; i < triangles.size(); ++i)
+			{
+				geometry._triangles[i] = triangles[i];
+			}
+
+			geometry.set_AABB(AABB_min, AABB_max);
+
+			return geometry;
 		}
 
-		geometry.set_AABB(AABB_min, AABB_max);
+		inline static CPU void free(trilist<false> & geometry)
+		{
+			::free(geometry._triangles);
 
-		return geometry;
-	}
-
-	inline static CPU void free(trilist<false> & geometry)
-	{
-		::free(geometry._triangles);
-
-		geometry._triangles = nullptr;
-		geometry._N = 0;
-	}
-};
+			geometry._triangles = nullptr;
+			geometry._N = 0;
+		}
+	};
 
 #if CUDA_AVAILABLE
-template<>
-struct _trilist_factory<true>
-{
-	inline static CPU trilist<true> create(std::vector<triangle> triangles, vec3 AABB_min, vec3 AABB_max)
+	template<>
+	struct trilist_factory<true>
 	{
-		using trilist_t = trilist<true>;
-		using triangle_index_t = trilist_t::triangle_index_t;
-
-		trilist_t geometry;
-
-		if (triangles.size() > std::numeric_limits<triangle_index_t>::max())
-			throw std::runtime_error("Too many triangles in geometry");
-		geometry._N = static_cast<triangle_index_t>(triangles.size());
-
-		// Copy triangle data to device
-		cuda::cuda_new<triangle>(&geometry._triangles, geometry._N);
-		cuda::cuda_mem_scope<triangle>(geometry._triangles, geometry._N,
-			[&triangles](triangle* device)
+		inline static CPU trilist<true> create(std::vector<triangle> triangles, vec3 AABB_min, vec3 AABB_max)
 		{
-			for (triangle_index_t i = 0; i < triangles.size(); ++i)
-				device[i] = triangles[i];
-		});
+			using trilist_t = trilist<true>;
+			using triangle_index_t = trilist_t::triangle_index_t;
 
-		geometry.set_AABB(AABB_min, AABB_max);
+			trilist_t geometry;
 
-		return geometry;
-	}
+			if (triangles.size() > std::numeric_limits<triangle_index_t>::max())
+				throw std::runtime_error("Too many triangles in geometry");
+			geometry._N = static_cast<triangle_index_t>(triangles.size());
 
-	inline static CPU void free(trilist<true> & geometry)
-	{
-		cudaFree(geometry._triangles);
+			// Copy triangle data to device
+			cuda::cuda_new<triangle>(&geometry._triangles, geometry._N);
+			cuda::cuda_mem_scope<triangle>(geometry._triangles, geometry._N,
+				[&triangles](triangle* device)
+			{
+				for (triangle_index_t i = 0; i < triangles.size(); ++i)
+					device[i] = triangles[i];
+			});
 
-		geometry._triangles = nullptr;
-		geometry._N = 0;
-	}
-};
+			geometry.set_AABB(AABB_min, AABB_max);
+
+			return geometry;
+		}
+
+		inline static CPU void free(trilist<true> & geometry)
+		{
+			cudaFree(geometry._triangles);
+
+			geometry._triangles = nullptr;
+			geometry._N = 0;
+		}
+	};
 #endif // CUDA_AVAILABLE
+} // namespace detail
 
 }} // namespace nbl::geometry

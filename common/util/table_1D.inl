@@ -3,12 +3,14 @@
 namespace nbl { namespace util {
 
 template<typename T, bool gpu_flag>
-CPU table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(real x_min, real x_max, size_t n, T* data)
+CPU table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(
+	real x_min, real x_max, size_t n,
+	T* data)
 {
 	table_1D<T, gpu_flag> table;
-	_table_1D_factory<T, gpu_flag>::allocate(table, n);
+	detail::table_1D_factory<T, gpu_flag>::allocate(table, n);
 	if (data != nullptr)
-		_table_1D_factory<T, gpu_flag>::set(table, data);
+		detail::table_1D_factory<T, gpu_flag>::set(table, data);
 	table._x_min = x_min;
 	table._x_step = (n - 1) / (x_max - x_min);
 	return table;
@@ -16,14 +18,14 @@ CPU table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(real x_min, real x_max, 
 template<typename T, bool gpu_flag>
 CPU void table_1D<T, gpu_flag>::destroy(table_1D<T, gpu_flag> & table)
 {
-	_table_1D_factory<T, gpu_flag>::free(table);
+	detail::table_1D_factory<T, gpu_flag>::free(table);
 }
 
 template<typename T, bool gpu_flag>
 template<typename callback_function>
 CPU void table_1D<T, gpu_flag>::mem_scope(callback_function callback)
 {
-	_table_1D_factory<T, gpu_flag>::mem_scope(*this, callback);
+	detail::table_1D_factory<T, gpu_flag>::mem_scope(*this, callback);
 }
 
 template<typename T, bool gpu_flag>
@@ -55,75 +57,70 @@ Original implementation does not handle infinities correctly.
 */
 }
 
-/*
- * The _table_1D_factory struct is responsible for managing the
- * memory on the CPU or GPU device.
- * 
- * Reason for putting this in a separate struct is that we can't
- * partially specialize a member function of the table_1D class.
- */
-
-template<typename T>
-struct _table_1D_factory<T, false>
+namespace detail
 {
-	inline static CPU void allocate(table_1D<T, false> & table, size_t n)
+	template<typename T>
+	struct table_1D_factory<T, false>
 	{
-		table._n = n;
-		table._data = new T[n];
-	}
+		inline static CPU void allocate(table_1D<T, false> & table, size_t n)
+		{
+			table._n = n;
+			table._data = new T[n];
+		}
 
-	inline static CPU void set(table_1D<T, false> & table, T* data)
-	{
-		memcpy(table._data, data, table._n * sizeof(T));
-	}
+		inline static CPU void set(table_1D<T, false> & table, T* data)
+		{
+			memcpy(table._data, data, table._n * sizeof(T));
+		}
 
-	template<typename callback_function>
-	inline static CPU void mem_scope(table_1D<T, false> & table, callback_function callback)
-	{
-		callback(table._data);
-	}
+		template<typename callback_function>
+		inline static CPU void mem_scope(table_1D<T, false> & table, callback_function callback)
+		{
+			callback(table._data);
+		}
 
-	inline static CPU void free(table_1D<T, false> & table)
-	{
-		delete[] table._data;
-		table._data = nullptr;
-		table._n = 0;
-	}
-};
+		inline static CPU void free(table_1D<T, false> & table)
+		{
+			delete[] table._data;
+			table._data = nullptr;
+			table._n = 0;
+		}
+	};
 
 #if CUDA_AVAILABLE
-template<typename T>
-struct _table_1D_factory<T, true>
-{
-	inline static CPU void allocate(table_1D<T, true> & table, size_t n)
+	template<typename T>
+	struct table_1D_factory<T, true>
 	{
-		table._n = n;
-		cuda::cuda_new<T>(&table._data, n);
-	}
-
-	inline static CPU void set(table_1D<T, true> & table, T* data)
-	{
-		const auto n = table._n;
-		cuda::cuda_mem_scope<T>(table._data, table._n, [data, n](T* device)
+		inline static CPU void allocate(table_1D<T, true> & table, size_t n)
 		{
-			for (size_t i = 0; i < n; ++i)
-				device[i] = data[i];
-		});
-	}
+			table._n = n;
+			cuda::cuda_new<T>(&table._data, n);
+		}
 
-	template<typename callback_function>
-	inline static CPU void mem_scope(table_1D<T, true> & table, callback_function callback)
-	{
-		cuda::cuda_mem_scope<T>(table._data, table._n, callback);
-	}
+		inline static CPU void set(table_1D<T, true> & table, T* data)
+		{
+			const auto n = table._n;
+			cuda::cuda_mem_scope<T>(table._data, table._n, [data, n](T* device)
+			{
+				for (size_t i = 0; i < n; ++i)
+					device[i] = data[i];
+			});
+		}
 
-	inline static CPU void free(table_1D<T, true> & table)
-	{
-		cudaFree(table._data);
-		table._data = nullptr;
-		table._n = 0;
-	}
-};
+		template<typename callback_function>
+		inline static CPU void mem_scope(table_1D<T, true> & table, callback_function callback)
+		{
+			cuda::cuda_mem_scope<T>(table._data, table._n, callback);
+		}
+
+		inline static CPU void free(table_1D<T, true> & table)
+		{
+			cudaFree(table._data);
+			table._data = nullptr;
+			table._n = 0;
+		}
+	};
 #endif // CUDA_AVAILABLE
+} // namespace detail
 
 }} // namespace nbl::util

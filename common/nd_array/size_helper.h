@@ -6,9 +6,10 @@
 namespace nbl { namespace nd_array { namespace detail
 {
 
-/*
- * Multiplies a list of integers.
- * Used for caluclating the total size of an n-dimensional table.
+/**
+ * \brief Multiplies a list of integers.
+ *
+ * Used for calculating the total size of an n-dimensional table.
  */
 template<typename... dims>
 inline size_t size_helper(size_t first, dims... rest)
@@ -22,7 +23,11 @@ inline size_t size_helper(size_t first)
 }
 
 
-// Version taking a std::array
+/**
+ * \brief Multiplies an array of integers.
+ *
+ * Used for calculating the total size of an n-dimensional table.
+ */
 template<size_t N>
 inline size_t size_helper(std::array<size_t, N> const & dimensions)
 {

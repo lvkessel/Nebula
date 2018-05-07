@@ -5,21 +5,35 @@
 #include "../common/util/table_2D.h"
 #include "../material/hdf5_file.h"
 
-/*
- * TODO: acoustic phonon loss
- * TODO: atomic recoil loss
- */
-
 namespace nbl { namespace scatter {
 
+/**
+ * \brief Elastic scattering, as described in Thomas Verduin's thesis.
+ *
+ * This is a combination of Mott scattering (for energy > 200 eV), acoustic
+ * phonon scattering (< 100 eV) and interpolation in between. The cross sections
+ * are combined by the cross section tool.
+ *
+ * T.V.'s thesis: doi:10.4233/uuid:f214f594-a21f-4318-9f29-9776d60ab06c
+ *
+ * \tparam gpu_flag                 Is the code to be run on a GPU?
+ * \tparam opt_acoustic_phonon_loss Lose energy to acoustic phonons
+ * \tparam opt_atomic_recoil_loss   Lose energy to atomic recoil for Mott scattering.
+ */
 template<bool gpu_flag,
 	bool opt_acoustic_phonon_loss = true,
 	bool opt_atomic_recoil_loss = true>
 class elastic_thomas
 {
 public:
+	/**
+	 * \brief Indicate that this class never generates secondary electrons.
+	 */
 	constexpr static bool may_create_se = false;
 
+	/**
+	 * \brief Sample a random free path length
+	 */
 	template<typename particle_t>
 	inline PHYSICS real sample_path(particle_t const & this_particle, util::random_generator<gpu_flag> & rng) const
 	{
@@ -30,6 +44,9 @@ public:
 		return rng.exponential(1 / imfp);
 	}
 
+	/**
+	 * \brief Perform a scattering event
+	 */
 	template<typename particle_manager>
 	inline PHYSICS void execute(
 		particle_manager& particle_mgr,
@@ -80,6 +97,12 @@ public:
 		particle_mgr[particle_idx] = this_particle;
 	}
 
+	/**
+	 * \brief Create, given a legacy material file
+	 *
+	 * \deprecated Old file format is deprecated and not supported by all
+	 *             scattering mechanisms. This function will be removed soon.
+	 */
 	static CPU elastic_thomas create(material_legacy_thomas const & mat)
 	{
 		elastic_thomas el;
@@ -140,6 +163,9 @@ public:
 		return el;
 	}
 
+	/**
+	 * \brief Create, given a material file
+	 */
 	static CPU elastic_thomas create(hdf5_file const & mat)
 	{
 		auto __logspace_K_at = [&](int x)
@@ -186,6 +212,9 @@ public:
 		return el;
 	}
 
+	/**
+	 * \brief Dealllocate data held by an instance of this class.
+	 */
 	static CPU void destroy(elastic_thomas & el)
 	{
 		util::table_1D<real, gpu_flag>::destroy(el._log_imfp_table);
@@ -193,16 +222,28 @@ public:
 	}
 
 private:
-	// log(inverse mean free path / nm^-1) as function of log(kinetic energy / eV).
+	/**
+	 * \brief Table storing the inverse mean free path as function of energy.
+	 *
+	 * Actually, stores `log(inverse mean free path / nm^-1)` as function of
+	 * `log(kinetic energy / eV)`.
+	 */
 	util::table_1D<real, gpu_flag> _log_imfp_table;
 
-	// cos(theta) as function of
-	//   - x axis: log(kinetic energy / eV)
-	//   - y axis: cum. probability
+	/**
+	 * \brief Table storing the probability distribution for the scattering angle.
+	 *
+	 * "ICDF" is short for Inverse Cumulative Distribution Function, which is
+	 * what this table stores.
+	 *
+	 * Specifically, stores `cos(theta)` as function of
+	 *   - x axis: `log(kinetic energy / eV)`
+	 *   - y axis: cumulative probability (between 0 and 1)
+	 */
 	util::table_2D<real, gpu_flag> _icdf_table;
 
-	real _phonon_loss;
-	real _recoil_const;
+	real _phonon_loss;  ///< Amount of energy lost in a phonon event (eV)
+	real _recoil_const; ///< Amount of energy lost in a Mott event (eV)
 };
 
 }} // namespace nbl::scatter

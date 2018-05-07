@@ -9,6 +9,21 @@
 
 namespace nbl { namespace scatter {
 
+/**
+ * \brief Inelastic scattering, according to the full Penn model.
+ *
+ * We distinguish between inner-shell and Fermi-sea excitations. Inner-shells
+ * are those with binding > 50 eV.
+ *   - Fermi sea: same as Mao et al, doi:10.1063/1.3033564
+ *   - Inner shells: same as Kieft et al, doi:10.1088/0022-3727/41/21/215310
+ *                      (see also ::nbl::scatter::inelastic_thomas)
+ *
+ * \tparam gpu_flag                   Is the code to be run on a GPU?
+ * \tparam opt_optical_phonon_loss    Assume optical phonon loss for energy loss less than band gap
+ * \tparam opt_generate_secondary     Generate secondary electrons
+ * \tparam opt_instantaneous_momentum Large losses: consider instantaneous momentum for SE
+ * \tparam opt_momentum_conservation  Large losses: obey conservation of momentum
+ */
 template<bool gpu_flag,
 	bool opt_optical_phonon_loss = true,
 	bool opt_generate_secondary = true,
@@ -17,8 +32,14 @@ template<bool gpu_flag,
 class inelastic_penn
 {
 public:
+	/**
+	 * \brief Indicate when this class generates secondary electrons
+	 */
 	constexpr static bool may_create_se = opt_generate_secondary;
 
+	/**
+	 * \brief Sample a random free path length
+	 */
 	inline PHYSICS real sample_path(particle const & this_particle, util::random_generator<gpu_flag> & rng) const
 	{
 		// Get inverse mean free path for this kinetic energy
@@ -28,6 +49,9 @@ public:
 		return rng.exponential(1 / imfp);
 	}
 
+	/**
+	 * \brief Perform a scattering event
+	 */
 	template<typename particle_manager>
 	inline PHYSICS void execute(
 		particle_manager& particle_mgr,
@@ -270,11 +294,23 @@ public:
 	}
 
 
+	/**
+	 * \brief Create, given a legacy material file: this function immediately
+	 *        throws an exception.
+	 *
+	 * The Penn model is not supported by legacy material files.
+	 *
+	 * \deprecated Old file format is deprecated and not supported by all
+	 *             scattering mechanisms. This function will be removed soon.
+	 */
 	static CPU inelastic_penn create(material_legacy_thomas const & mat)
 	{
 		throw std::runtime_error("Cannot get Penn inelastic model from old-style .mat files");
 	}
 
+	/**
+	 * \brief Create, given a material file.
+	 */
 	static CPU inelastic_penn create(hdf5_file const & mat)
 	{
 		auto __logspace_K_at = [&](int x, int cnt)
@@ -370,6 +406,9 @@ public:
 		return inel;
 	}
 
+	/**
+	 * \brief Dealllocate data held by an instance of this class.
+	 */
 	static CPU void destroy(inelastic_penn & inel)
 	{
 		util::table_1D<real, gpu_flag>::destroy(inel._log_imfp_table);
@@ -379,28 +418,54 @@ public:
 	}
 
 private:
-	// log(inverse mean free path / nm^-1) as function of log(kinetic energy / eV).
+	/**
+	 * \brief Table storing the inverse mean free path as function of energy.
+	 *
+	 * Actually, stores `log(inverse mean free path / nm^-1)` as function of
+	 * `log(kinetic energy / eV)`.
+	 */
 	util::table_1D<real, gpu_flag> _log_imfp_table;
 
-	// log (inverse cumulative distribution function / eV) as function of
-	//   - x axis: log(kinetic energy / eV)
-	//   - y axis: cum. probability
+	/**
+	 * \brief Table storing the probability distribution for energy loss.
+	 *
+	 * "ICDF" is short for Inverse Cumulative Distribution Function, which is
+	 * what this table stores.
+	 *
+	 * Specifically, stores `log(omega / eV)` as function of
+	 *   - x axis: `log(kinetic energy / eV)`
+	 *   - y axis: cumulative probability (between 0 and 1)
+	 */
 	util::table_2D<real, gpu_flag> _log_omega_icdf_table;
 
-	// inverse cumulative distribution function / ev^-1/2 as function of
-	//   - x axis: log(kinetic energy / eV)
-	//   - y axis: omega / kinetic energy
-	//   - z axis: cum. probability
+	/**
+	 * \brief Table storing the probability distribution for momentum transfer.
+	 *
+	 * "ICDF" is short for Inverse Cumulative Distribution Function, which is
+	 * what this table stores.
+	 *
+	 * Specifically, stores `hbar*q/sqrt(2m) / eV^1/2` as function of
+	 *   - x axis: `log(kinetic energy / eV)`
+	 *   - y axis: omega / kinetic energy (between 0 and 1)
+	 *   - y axis: cumulative probability (between 0 and 1)
+	 */
 	util::table_3D<real, gpu_flag> _q_icdf_table;
 
-	// inverse cumulative distribution function / eV as function of
-	//   - x axis: log(kinetic energy / eV)
-	//   - y axis: cum. probability
-	// Be sure to use .get_rounddown() for non-interpolated values
+	/**
+	 * \brief Inner-shell ionization table.
+	 *
+	 * Specifically, stores `binding energy / eV` as function of
+	 *   - x axis: `log(kinetic energy / eV)`
+	 *   - y axis: cumulative probability (between 0 and 1)
+	 *
+	 * "No binding energy" is denoted by -1 in the table.
+	 *
+	 * Be sure to use .get_rounddown() for non-interpolated values
+	 */
 	util::table_2D<real, gpu_flag> _ionisation_table;
 
-	real _fermi;
-	real _band_gap;
+	real _fermi;    ///< Fermi energy (eV)
+	real _band_gap; ///< Band gap (eV) (no band gap is denoted by -1)
 };
 
 }} // namespace nbl::scatter

@@ -1,19 +1,6 @@
 #ifndef __SCATTER_LIST_H_
 #define __SCATTER_LIST_H_
 
-/*
- * scatter_list represents a list of scattering processes
- * that can take place in a material.
- * 
- * It exposes two functions:
- *   sample_path() returns a scatter_event describing which event
- *                 takes place first, and at what distance
- *   execute() executes the desired event.
- * 
- * Each scatter_type is a class that must have public member functions
- *   PHYSICS real sample_path() const;
- *   PHYSICS void execute_event(particle&) const;
- */
 
 #include "../common/tuple.h"
 #include "events.h"
@@ -21,17 +8,41 @@
 
 // TODO namespace
 
+/**
+ * \brief Represents a list of scattering processes that can take place in a
+ * material.
+ *
+ * \tparam scatter_types... Types of scattering events.
+ *
+ * Each \p scatter_type is a class that must have public member functions with
+ * the following signatures:
+ *   * `PHYSICS real sample_path(particle const &, random_generator&) const;`
+ *
+ *     Returns a free path length until the next scattering event for the given particle.
+ *   * `PHYSICS void execute_event(particle_manager, particle_index, random_generator&) const;`
+ *
+ *     Performs the event, if chosen.
+ */
 template<typename... scatter_types>
 class scatter_list : nbl::tuple::tuple<scatter_types...>
 {
 public:
+	/**
+	 * \brief Constructor
+	 */
 	CPU scatter_list(scatter_types... sc)
 		: nbl::tuple::tuple<scatter_types...>(sc...)
 	{}
 
+	/**
+	 * \brief Get the scattering type at the given index
+	 */
 	template <size_t I>
 	using type_at_index = typename nbl::type_at_index<I, scatter_types...>;
 
+	/**
+	 * \brief Return the number of scattering event types
+	 */
 	static constexpr size_t size() { return sizeof...(scatter_types); }
 
 /*
@@ -65,6 +76,10 @@ public:
 */
 
 	// C++11 workarounds
+	/**
+	 * \brief Returns a ::scatter_event describing which event takes place
+	 *        first, and at what distance
+	 */
 	template<typename rng_t>
 	inline PHYSICS scatter_event sample_path(particle const & this_particle, rng_t & rng) const
 	{
@@ -72,6 +87,17 @@ public:
 		nbl::tuple::visit(*this, visitor);
 		return visitor.evt;
 	}
+
+	/**
+	 * \brief Executes the desired event.
+	 *
+	 * \param i            Index of the scattering event type (typically, the
+	 *                     index returned by #sample_path).
+	 * \param particle_mgr Particle manager used by the simulation.
+	 * \param particle_idx Index of the particle for which the event is to be
+	 *                     executed.
+	 * \param rng          A random number generator.
+	 */
 	template<typename particle_manager, typename rng_t>
 	inline PHYSICS void execute(uint8_t i,
 		particle_manager& particle_mgr,

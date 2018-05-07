@@ -1,11 +1,22 @@
 #ifndef __CUDA_MEM_SCOPE_H_
 #define __CUDA_MEM_SCOPE_H_
 
+/**
+ * \file common/cuda/cuda_mem_scope.h
+ * \brief Utility functions for accessing GPU memory from CPU code
+ */
+
 namespace nbl { namespace cuda {
 
-/*
- * Read/write data in GPU memory: copy to host, callback sets data, copy to device.
- * Callback function should have signature void(T*).
+/**
+ * \brief Utility function to read/write data in GPU memory from CPU code.
+ *
+ * Actions: copy GPU memory to host, call callback function to set new data,
+ * copy to device. The GPU memory is an array of \p N elements of type \p T.
+ *
+ * \param dev_p    Pointer to GPU memory
+ * \param N        Number of elements in GPU memory
+ * \param callback Callback function to set the data. Should have signature `void(T*)`.
  */
 template<typename T, typename callback_func>
 CPU void cuda_mem_scope(T* dev_p, size_t N, callback_func callback)
@@ -26,10 +37,19 @@ CPU void cuda_mem_scope(T* dev_p, size_t N, callback_func callback)
 	free(host_p);
 }
 
-/*
- * Similar to cuda_mem_scope, only 2D access this time.
- * Callback function should have signature void(T** arr),
- * with indexing convention arr[y][x]
+/**
+ * \brief Read/write 2D array in GPU memory.
+ *
+ * Similar to ::cuda_mem_scope, only with 2D access.
+ * The callback function should have signature `void(T** arr)`; the indexing
+ * convention is `arr[y][x]`.
+ *
+ * \param dev_p    Pointer to GPU memory
+ * \param pitch    Pitch, in bytes
+ * \param width    Width (x size) of the 2D array
+ * \param height   Height (y size) of the 2D array
+ * \param callback The callback function. Signature should be `void(T** arr)`,
+ *                 the indexing convention is `arr[y][x]`.
  */
 template<typename T, typename callback_func>
 CPU void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, callback_func callback)
@@ -56,10 +76,20 @@ CPU void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, 
 	delete[] host_p;
 }
 
-/*
- * Same, for 3D.
- * Callback function should have signature void(T*** arr),
- * with indexing convention arr[z][y][x]
+/**
+ * \brief Read/write 3D array in GPU memory.
+ *
+ * Similar to ::cuda_mem_scope, only with 3D access.
+ * The callback function should have signature `void(T*** arr)`; the indexing
+ * convention is `arr[z][y][x]`.
+ *
+ * \param dev_p    Pointer to GPU memory
+ * \param pitch    Pitch, in bytes
+ * \param width    Width (x size) of the 3D array
+ * \param height   Height (y size) of the 3D array
+ * \param depth    Depth (z size) of the 3D array
+ * \param callback The callback function. Signature should be `void(T*** arr)`,
+ *                 the indexing convention is `arr[z][y][x]`.
  */
 template<typename T, typename callback_func>
 CPU void cuda_mem_scope_3D(T* dev_p, size_t pitch, size_t width, size_t height, size_t depth, callback_func callback)

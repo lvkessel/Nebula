@@ -1,6 +1,17 @@
 #ifndef __SCALAR_MATH_H_
 #define __SCALAR_MATH_H_
 
+/**
+ * \file common/scalar_math.h
+ * \brief Scalar math functions to be used in simulation code.
+ *
+ * To avoid name collisions with globally-defined functions (as CUDA does), the
+ * functions here are suffixed with `r` for ::real. It is strongly recommended
+ * to use these functions, because (a) they correctly point to double/float
+ * whatever the choice of ::USE_DOUBLE and (b) they will use the correct CPU/GPU
+ * version.
+ */
+
 #include <cmath>
 #include <algorithm>
 #if CUDA_AVAILABLE
@@ -8,19 +19,18 @@
 	#include <math_constants.h>
 #endif // CUDA_AVAILABLE
 
-/*
- * Scalar math to be used in device code
- */
-
+/// Clamp an integer
 inline PHYSICS int clampi(int i, int low, int high)
 {
 	return i < low ? low : (i > high ? high : i);
 }
+/// Clamp a real number
 inline PHYSICS real clampr(real i, real low, real high)
 {
 	return i < low ? low : (i > high ? high : i);
 }
 
+/// Round to nearest integer, rounding halfway cases to the nearest even number
 inline PHYSICS int rintr(real i)
 {
 #if CUDA_COMPILING
@@ -34,6 +44,7 @@ inline PHYSICS int rintr(real i)
 #endif // CUDA_COMPILING
 }
 
+/// Round to down to integer (towards negative infinity)
 inline PHYSICS int floorr(real i)
 {
 #if CUDA_COMPILING
@@ -47,6 +58,7 @@ inline PHYSICS int floorr(real i)
 #endif // CUDA_COMPILING
 }
 
+/// Get the lowest of two real numbers
 inline PHYSICS real minr(real a, real b)
 {
 #if CUDA_COMPILING
@@ -60,6 +72,7 @@ inline PHYSICS real minr(real a, real b)
 #endif // CUDA_COMPILING
 }
 
+/// Get the highest of two real numbers
 inline PHYSICS real maxr(real a, real b)
 {
 #if CUDA_COMPILING
@@ -73,6 +86,7 @@ inline PHYSICS real maxr(real a, real b)
 #endif // CUDA_COMPILING
 }
 
+/// Take the absolute value of a real number
 inline PHYSICS real absr(real x)
 {
 #if CUDA_COMPILING
@@ -86,6 +100,7 @@ inline PHYSICS real absr(real x)
 #endif // CUDA_COMPILING
 }
 
+/// Take the square root of a real number
 inline PHYSICS real sqrtr(real x)
 {
 #if CUDA_COMPILING
@@ -99,6 +114,7 @@ inline PHYSICS real sqrtr(real x)
 #endif // CUDA_COMPILING
 }
 
+/// Take the cube root of a real number, even if that number is negative.
 inline PHYSICS real cbrtr(real x)
 {
 #if CUDA_COMPILING
@@ -112,6 +128,7 @@ inline PHYSICS real cbrtr(real x)
 #endif // CUDA_COMPILING
 }
 
+/// Take the natural logarithm of a real number
 inline PHYSICS real logr(real x)
 {
 #if CUDA_COMPILING
@@ -125,6 +142,7 @@ inline PHYSICS real logr(real x)
 #endif // CUDA_COMPILING
 }
 
+/// Take the exponent of a real number
 inline PHYSICS real expr(real x)
 {
 #if CUDA_COMPILING
@@ -138,6 +156,7 @@ inline PHYSICS real expr(real x)
 #endif // CUDA_COMPILING
 }
 
+/// Take the exponent of a real number, minus 1: (e^x) - 1
 inline PHYSICS real expm1r(real x)
 {
 #if CUDA_COMPILING
@@ -151,6 +170,7 @@ inline PHYSICS real expm1r(real x)
 #endif // CUDA_COMPILING
 }
 
+/// Take the sine of a real number
 inline PHYSICS real sinr(real x)
 {
 #if CUDA_COMPILING
@@ -164,6 +184,7 @@ inline PHYSICS real sinr(real x)
 #endif // CUDA_COMPILING
 }
 
+/// Take the cosine of a real number
 inline PHYSICS real cosr(real x)
 {
 #if CUDA_COMPILING
@@ -177,6 +198,10 @@ inline PHYSICS real cosr(real x)
 #endif // CUDA_COMPILING
 }
 
+/**
+ * \brief Calculate the arc tangent of the ratio of the input arguments, in the
+ *        correct quadrant as determined by the signs of the parameters.
+ */
 inline PHYSICS real atan2r(real y, real x)
 {
 #if CUDA_COMPILING
@@ -190,6 +215,13 @@ inline PHYSICS real atan2r(real y, real x)
 #endif // CUDA_COMPILING
 }
 
+/**
+ * \brief Simultaneously calculate the sine and cosine of a real number.
+ *
+ * \param x       Number to take the sine and cosine of
+ * \param sin_ptr Pointer to the value to store the sine in
+ * \param cos_ptr Pointer to the value to store the cosine in
+ */
 inline PHYSICS void sincosr(real x, real* sin_ptr, real* cos_ptr)
 {
 #if CUDA_COMPILING
@@ -206,6 +238,14 @@ inline PHYSICS void sincosr(real x, real* sin_ptr, real* cos_ptr)
 #endif // CUDA_COMPILING
 }
 
+/**
+ * \brief Create value with magnitude, copying sign of another value.
+ *
+ * Similar to taking sign(y) * abs(x).
+ *
+ * \param x Number to take magnitude of
+ * \param y Number to copy the sign of
+ */
 inline PHYSICS real copysignr(real x, real y)
 {
 #if CUDA_COMPILING
@@ -219,6 +259,7 @@ inline PHYSICS real copysignr(real x, real y)
 #endif // CUDA_COMPILING
 }
 
+/// Clamp a real number between 0 and 1.
 inline PHYSICS real saturater(real x)
 {
 #if CUDA_COMPILING

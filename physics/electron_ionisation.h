@@ -9,10 +9,19 @@
 
 namespace nbl { namespace scatter {
 
+/**
+ * \brief Stores electron ionization probabilities.
+ *
+ * TODO: this class is only used by ::nbl::scatter::inelastic_thomas. It should
+ * really just be part of that class.
+ */
 template<bool gpu_flag>
 class electron_ionisation
 {
 public:
+	/**
+	 * \brief Get inner shell energy.
+	 */
 	PHYSICS real sample(real K, util::random_generator<gpu_flag>& rng) const
 	{
 		const real x = logr(K);
@@ -137,6 +146,16 @@ public:
 	}
 
 private:
+	/**
+	 * \brief Ionization table, representing probability of ionizing a given
+	 * inner or outer shell.
+	 *
+	 * Specifically, stores `binding energy / eV` as function of
+	 *   - x axis: `log(kinetic energy / eV)`
+	 *   - y axis: cumulative probability (between 0 and 1)
+	 *
+	 * Be sure to use .get_rounddown() for non-interpolated values
+	 */
 	util::table_2D<real, gpu_flag> _ionisation_table;
 };
 
