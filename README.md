@@ -20,7 +20,7 @@ Nebula has been tested with the following compilers and versions:
 
 Later compilers are pretty much guaranteed to work. Earlier versions of these compilers might also work, but they haven't been tested. In addition to these compilers, we require the following:
 * cmake 3.8 or greater
-* hdf5 1.8 or greater
+* hdf5 1.8.12 or greater, with the C++ and high-level interfaces.
 
 There are three main programs at the moment:
 * `gpu_main.cu`, which, incidentally, also supports a simple CPU version with a preprocessor flag.
