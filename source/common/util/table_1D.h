@@ -55,12 +55,12 @@ public:
 	/**
 	 * \brief Set or get data using a callback function.
 	 *
-	 * Similar to ::nbl::cuda::cuda_mem_scope_2D. If applicable, it copies the
+	 * Similar to ::nbl::cuda::cuda_mem_scope. If applicable, it copies the
 	 * data from the GPU to the CPU. It calls the \p callback function with a
 	 * CPU-accessible pointer to this data. Finally, if applicable, it copies
 	 * the data back to the GPU.
 	 *
-	 * \param callback Callback function. Should have signature `void(T**)`.
+	 * \param callback Callback function. Should have signature `void(T*)`.
 	 */
 	template<typename callback_function>
 	CPU void mem_scope(callback_function callback);
