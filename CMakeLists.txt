@@ -8,6 +8,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 # Find HDF5 library
 find_package(HDF5 1.8.12 REQUIRED CXX HL)
 include_directories(${HDF5_INCLUDE_DIRS})
+add_definitions(${HDF5_DEFINITIONS})
 list(APPEND LIBRARIES ${HDF5_CXX_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 # Find MPI library if compiling against parallel HDF5
