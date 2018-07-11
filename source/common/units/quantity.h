@@ -19,6 +19,11 @@ struct quantity
 	value_type value;
 	dimension units;
 
+	explicit constexpr quantity(value_type val = value_type{},
+		dimension unit = dimensions::dimensionless)
+		: value(val), units(unit)
+	{}
+
 	bool dimensionless() const
 	{
 		return units == dimensions::dimensionless;
@@ -137,11 +142,7 @@ struct quantity
 template<typename T>
 inline quantity<T> pow(quantity<T> q, int power)
 {
-	return
-	{
-		std::pow(q.value, power),
-		pow(q.units, power)
-	};
+	return quantity<T>(std::pow(q.value, power), pow(q.units, power));
 }
 
 template<typename T, typename U>
@@ -152,11 +153,7 @@ inline typename std::enable_if<std::is_convertible<T,U>::value, const quantity<U
 template<typename T>
 inline const quantity<T> operator/(T const v, quantity<T> const & q)
 {
-	return
-	{
-		v / q.value,
-		dimensions::dimensionless / q.units
-	};
+	return quantity<T>(v / q.value, dimensions::dimensionless / q.units);
 }
 
 }} // namespace nbl::units
