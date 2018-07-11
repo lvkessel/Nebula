@@ -4,6 +4,7 @@
 #include "../core/particle.h"
 #include "../common/util/table_1D.h"
 #include "../common/util/table_2D.h"
+#include "../common/util/range.h"
 #include "electron_ionisation.h"
 
 namespace nbl { namespace scatter {
@@ -202,20 +203,8 @@ public:
 		inel._band_gap = static_cast<real>(mat.band_gap()() / constant::ec);
 		inel._binding = electron_ionisation<gpu_flag>::create(mat);
 
-		/*
-		 * TODO: move this somewhere else (see inelastic, elastic, binding)
-		 * Translate index in a table to the relevant physical value.
-		 * K_at refers to kinetic energy (log space) and P_at refers to
-		 * the differential cross section (linear space).
-		 */
-		auto __logspace_K_at = [&](int x)
-		{
-			return K_min*std::exp(1.0*x / (K_cnt - 1)*std::log(K_max / K_min));
-		};
-		auto __linspace_P_at = [&](int y)
-		{
-			return 1.0*y / (P_cnt - 1);
-		};
+		util::geomspace<double> K_range(K_min, K_max, K_cnt);
+		util::linspace<double> P_range(0, 1, P_cnt);
 
 
 		/*
@@ -226,7 +215,7 @@ public:
 		{
 			for (int x = 0; x < K_cnt; ++x)
 			{
-				const double K = __logspace_K_at(x)*constant::ec; // in Joules
+				const double K = K_range[x]*constant::ec; // in Joules
 				imfp_vector[x] = (real)std::log(mat.density()*mat.inelastic_tcs(K)*1e-9);
 			}
 		});
@@ -240,10 +229,10 @@ public:
 		{
 			for (int y = 0; y < P_cnt; ++y)
 			{
-				const double P = __linspace_P_at(y);
+				const double P = P_range[y];
 				for (int x = 0; x < K_cnt; ++x)
 				{
-					const double K = __logspace_K_at(x)*constant::ec; // in Joules
+					const double K = K_range[x]*constant::ec; // in Joules
 
 					icdf_vector[y][x] = (real)std::log(std::max(0.0, std::min(
 						(K - mat.fermi()) / constant::ec,
@@ -261,14 +250,8 @@ public:
 	 */
 	static CPU inelastic_thomas create(hdf5_file const & mat)
 	{
-		auto __logspace_K_at = [&](int x)
-		{
-			return K_min * std::exp(1.0*x / (K_cnt - 1)*std::log(K_max / K_min));
-		};
-		auto __linspace_P_at = [&](int y)
-		{
-			return 1.0*y / (P_cnt - 1);
-		};
+		util::geomspace<units::quantity<double>> K_range(K_min*units::eV, K_max*units::eV, K_cnt);
+		util::linspace<units::quantity<double>> P_range(0*units::dimensionless, 1*units::dimensionless, P_cnt);
 
 		inelastic_thomas inel;
 
@@ -282,7 +265,7 @@ public:
 			auto inelastic_imfp = mat.get_table_axes<1>("inelastic_kieft/imfp");
 			for (int x = 0; x < K_cnt; ++x)
 			{
-				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(__logspace_K_at(x) * units::eV) * units::nm);
+				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(K_range[x]) * units::nm);
 			}
 		});
 
@@ -293,15 +276,15 @@ public:
 			auto inelastic_icdf = mat.get_table_axes<2>("inelastic_kieft/w0_icdf");
 			for (int y = 0; y < P_cnt; ++y)
 			{
-				const double P = __linspace_P_at(y);
+				const units::quantity<double> P = P_range[y];
 				for (int x = 0; x < K_cnt; ++x)
 				{
-					units::quantity<double> K = __logspace_K_at(x)*units::eV;
+					units::quantity<double> K = K_range[x];
 
 					// TODO: support creation of dimensionless quantities from scalars
 					icdf_vector[y][x] = (real)std::log(std::max(0.0, std::min<double>(
 						(K - fermi) / units::eV,
-						inelastic_icdf.get_linear(K, P*units::dimensionless) / units::eV
+						inelastic_icdf.get_linear(K, P) / units::eV
 					)));
 				}
 			}

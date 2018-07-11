@@ -6,6 +6,7 @@
 #include "../common/util/table_1D.h"
 #include "../common/util/table_2D.h"
 #include "../common/util/table_3D.h"
+#include "../common/util/range.h"
 
 namespace nbl { namespace scatter {
 
@@ -313,14 +314,8 @@ public:
 	 */
 	static CPU inelastic_penn create(hdf5_file const & mat)
 	{
-		auto __logspace_K_at = [&](int x, int cnt)
-		{
-			return K_min * std::exp(1.0*x / (cnt - 1)*std::log(K_max / K_min));
-		};
-		auto __linspace_P_at = [&](int y, int cnt)
-		{
-			return 1.0*y / (cnt - 1);
-		};
+		util::geomspace<units::quantity<double>> K_range(K_min*units::eV, K_max*units::eV, K_cnt);
+		util::linspace<units::quantity<double>> P_range(0*units::dimensionless, 1*units::dimensionless, P_cnt);
 
 		inelastic_penn inel;
 
@@ -333,7 +328,7 @@ public:
 			auto inelastic_imfp = mat.get_table_axes<1>("full_penn/imfp");
 			for (int x = 0; x < K_cnt; ++x)
 			{
-				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(__logspace_K_at(x, K_cnt) * units::eV) * units::nm);
+				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(K_range[x]) * units::nm);
 			}
 		});
 
@@ -344,10 +339,10 @@ public:
 			auto inelastic_icdf = mat.get_table_axes<2>("full_penn/omega_icdf");
 			for (int y = 0; y < P_cnt; ++y)
 			{
-				const units::quantity<double> P = __linspace_P_at(y, P_cnt) * units::dimensionless;
+				const units::quantity<double> P = P_range[y];
 				for (int x = 0; x < K_cnt; ++x)
 				{
-					const units::quantity<double> K = __logspace_K_at(x, K_cnt) * units::eV;
+					const units::quantity<double> K = K_range[x];
 
 					icdf_vector[y][x] = (real)std::log(std::max(0.0, std::min<double>(
 						(K - fermi) / units::eV,
@@ -358,19 +353,21 @@ public:
 		});
 
 
+		util::geomspace<units::quantity<double>> K512_range(K_min*units::eV, K_max*units::eV, 512);
+		util::linspace<units::quantity<double>> P512_range(0*units::dimensionless, 1*units::dimensionless, 512);
 		inel._q_icdf_table = util::table_3D<real, gpu_flag>::create(logr(K_min), logr(K_max), 512, 0, 1, 512, 0, 1, 512);
 		inel._q_icdf_table.mem_scope([&](real*** icdf_vector)
 		{
 			auto inelastic_icdf = mat.get_table_axes<3>("full_penn/q_icdf");
 			for (int z = 0; z < 512; ++z)
 			{
-				const units::quantity<double> P = __linspace_P_at(z, 512)*units::dimensionless;
+				const units::quantity<double> P = P512_range[z];
 				for (int y = 0; y < 512; ++y)
 				{
-					const units::quantity<double> Q = __linspace_P_at(y, 512)*units::dimensionless;
+					const units::quantity<double> Q = P512_range[y];
 					for (int x = 0; x < 512; ++x)
 					{
-						units::quantity<double> K = __logspace_K_at(x, 512)*units::eV;
+						units::quantity<double> K = K512_range[x];
 
 						// hbar / sqrt(2*electron mass) == 0.19519 nm eV^1/2
 						icdf_vector[z][y][x] = static_cast<real>(0.19519 *
@@ -389,12 +386,12 @@ public:
 			// Create the simulation table
 			for (int y = 0; y < P_cnt; ++y)
 			{
-				const double P = __linspace_P_at(y, P_cnt);
+				const units::quantity<double> P = P_range[y];
 				for (int x = 0; x < K_cnt; ++x)
 				{
-					const units::quantity<double> K = __logspace_K_at(x, K_cnt)*units::eV;
+					const units::quantity<double> K = K_range[x];
 
-					units::quantity<double> binding = icdf_table.get_rounddown(K, P*units::dimensionless);
+					units::quantity<double> binding = icdf_table.get_rounddown(K, P);
 					if (binding < 50 * units::eV || !std::isfinite(binding.value))
 						binding = -1 * units::eV;
 
