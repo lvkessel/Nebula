@@ -67,6 +67,14 @@ public:
 	}
 
 	/**
+	 * \brief Unit vector, uniformly distributed on the unit sphere
+	 */
+	PHYSICS vec3 uniform_vector()
+	{
+		return make_unit_vec(2*unit() - 1, phi());
+	}
+
+	/**
 	 * \brief Exponential, with typical constant tau (tau has units of return value)
 	 */
 	PHYSICS real exponential(real tau)

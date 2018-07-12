@@ -183,7 +183,7 @@ public:
 						}
 
 						secondary_particle.kin_energy = x*omega + omega;
-						secondary_particle.dir = make_unit_vec(2 * rng.unit() - 1, rng.phi());
+						secondary_particle.dir = rng.uniform_vector();
 					}
 					else if (q < k_fermi_omega + k_fermi)
 					{
@@ -261,10 +261,8 @@ public:
 		// See thesis T.V. Eq. 3.108
 		if (opt_instantaneous_momentum)
 		{
-			const real random_cos = 2*rng.unit() - 1;
-			const real random_phi = rng.phi();
 			secondary_dir = normalised(secondary_dir);
-			secondary_dir += sqrtr(binding / dK) * make_unit_vec(random_cos, random_phi);
+			secondary_dir += sqrtr(binding / dK) * rng.uniform_vector();
 		}
 
 		// ensure proper normalization of the secondary directional vector.
