@@ -213,7 +213,7 @@ __global__ void kernels::init(
 	}
 
 	// Move particle to next event, unless there is a triangle in the way
-	this_particle.dir = normalised(this_particle.dir);
+	normalise(this_particle.dir);
 	intersect_event next_intersect = geometry.propagate(
 		this_particle.pos, this_particle.dir, next_scatter.distance,
 		particles.get_last_triangle(particle_idx),

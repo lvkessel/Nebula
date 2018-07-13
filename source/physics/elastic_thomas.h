@@ -66,7 +66,7 @@ public:
 		}
 
 		// normalize current direction
-		this_particle.dir = normalised(this_particle.dir);
+		normalise(this_particle.dir);
 
 		// find a random normal vector to the current direction of flight and normalize
 		vec3 normal_dir = normalised(make_normal_vec(this_particle.dir, rng.phi()));

@@ -130,7 +130,7 @@ public:
 		binding = maxr(0, binding);
 
 		// Normalise direction
-		this_particle.dir = normalised(this_particle.dir);
+		normalise(this_particle.dir);
 
 		// determine random normal vector to determine the scattering direction
 		vec3 normal_dir = normalised(make_normal_vec(this_particle.dir, rng.phi()));
@@ -153,12 +153,12 @@ public:
 		// See thesis T.V. Eq. 3.108
 		if (opt_instantaneous_momentum)
 		{
-			secondary_dir = normalised(secondary_dir);
+			normalise(secondary_dir);
 			secondary_dir += sqrtr(binding / dK) * rng.uniform_vector();
 		}
 
 		// ensure proper normalization of the secondary directional vector.
-		secondary_dir = normalised(secondary_dir);
+		normalise(secondary_dir);
 
 		if (opt_generate_secondary)
 		{

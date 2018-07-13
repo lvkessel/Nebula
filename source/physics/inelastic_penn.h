@@ -86,7 +86,7 @@ public:
 		}
 
 		// Normalise direction
-		this_particle.dir = normalised(this_particle.dir);
+		normalise(this_particle.dir);
 
 		// No inner-shell binding energy: Fermi sea excitation
 		if (binding <= 0)
@@ -261,12 +261,12 @@ public:
 		// See thesis T.V. Eq. 3.108
 		if (opt_instantaneous_momentum)
 		{
-			secondary_dir = normalised(secondary_dir);
+			normalise(secondary_dir);
 			secondary_dir += sqrtr(binding / dK) * rng.uniform_vector();
 		}
 
 		// ensure proper normalization of the secondary directional vector.
-		secondary_dir = normalised(secondary_dir);
+		normalise(secondary_dir);
 
 		if (opt_generate_secondary)
 		{
