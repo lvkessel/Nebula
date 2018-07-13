@@ -72,6 +72,21 @@ inline PHYSICS void operator/=(vec3& a, real b)
 	a *= 1 / b;
 }
 
+/// Vector equality comparison
+inline PHYSICS bool operator==(vec3 const & a, vec3 const & b)
+{
+	return (a.x == b.x
+		&& a.y == b.y
+		&& a.z == b.z);
+}
+/// Vector equality comparison
+inline PHYSICS bool operator!=(vec3 const & a, vec3 const & b)
+{
+	return (a.x != b.x
+		|| a.y != b.y
+		|| a.z != b.z);
+}
+
 /// Outer product, or cross product, between vectors
 inline PHYSICS vec3 cross_product(vec3 a, vec3 b)
 {
@@ -121,6 +136,24 @@ inline PHYSICS vec3 normalised(vec3 a)
 	return a * rnorm;
 #else // CUDA_COMPILING
 	return a / sqrtr(a.x*a.x + a.y*a.y + a.z*a.z);
+#endif // CUDA_COMPILING
+}
+
+/**
+ * \brief Normalise the vector in-place
+ *
+ * `normalise(a)` is equivalent to `a = normalised(a)`.
+ */
+inline PHYSICS void normalise(vec3& a)
+{
+#if CUDA_COMPILING
+	#if USE_DOUBLE
+		a *= rnorm3d(a.x, a.y, a.z);
+	#else // USE_DOUBLE
+		a *= rnorm3df(a.x, a.y, a.z);
+	#endif //USE_DOUBLE
+#else // CUDA_COMPILING
+	a /= sqrtr(a.x*a.x + a.y*a.y + a.z*a.z);
 #endif // CUDA_COMPILING
 }
 
