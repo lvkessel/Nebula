@@ -194,6 +194,7 @@ int main(int argc, char** argv)
 			<< " | running: " << prescan_stats.back().first
 			<< " | detected: " << prescan_stats.back().second;
 	}
+	out_file.flush(d0);
 	// Find frame_size and batch_size based on the prescan stats.
 	// frame_size is the iteration number where running_count was maximal.
 	const size_t frame_size = 1 + std::distance(prescan_stats.begin(),
