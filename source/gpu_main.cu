@@ -45,7 +45,7 @@ material_t load_material(std::string const & filename)
 int main(int argc, char** argv)
 {
 	// Settings
-	size_t capacity = 200000;
+	size_t capacity = 1000000;
 	size_t prescan_size = 1000;
 	real batch_factor = .9_r;
 	typename driver::seed_t seed = 0x14f8214e78c7e39b;
@@ -59,7 +59,7 @@ int main(int argc, char** argv)
 	const std::string usage("Usage: " + p.get_program_name() +
 		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n"
 		"Options:\n"
-		"\t--capacity     [200000]\n"
+		"\t--capacity     [1000000]\n"
 		"\t--prescan-size [1000]\n"
 		"\t--batch-factor [0.9]\n"
 		"\t--seed         [0x14f8214e78c7e39b]\n");
