@@ -4,6 +4,19 @@ namespace kernels
 {
 	__global__ void init_random_states(util::random_generator<true>* curand_states, unsigned long long seed, size_t capacity);
 
+	__global__ void init_buffer_data(bool* buffer_data, size_t N);
+
+	template<typename particle_manager_t>
+	__global__ void push_buffer_in(
+		particle_manager_t particles,
+		bool* buffer_in_data,
+		particle* buffer_in_particles,
+		uint32_t* buffer_in_tags,
+		typename particle_manager_t::particle_index_t buffer_in_size);
+
+	template<typename particle_manager_t>
+	__global__ void terminate_detected(particle_manager_t particles);
+
 	template<typename particle_manager_t, typename material_manager_t, typename geometry_manager_t>
 	__global__ void init(particle_manager_t particles,
 		material_manager_t materials,
@@ -54,6 +67,22 @@ CPU gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::gpu_driver(
 	kernels::init_random_states<<<_num_blocks, _threads_per_block>>>(
 		curand_states, seed, particle_capacity
 	);
+
+	/*
+	 * Allocate output buffers
+	 */
+	cuda::cuda_new<status_t>(&buffer_dout_status, particle_capacity);
+	cuda::cuda_new<particle>(&buffer_dout_particles, particle_capacity);
+	cuda::cuda_new<uint32_t>(&buffer_dout_tags, particle_capacity);
+
+	cudaMallocHost(&buffer_hout_status, particle_capacity*sizeof(status_t));
+	cudaMallocHost(&buffer_hout_particles, particle_capacity*sizeof(particle));
+	cudaMallocHost(&buffer_hout_tags, particle_capacity*sizeof(uint32_t));
+
+	// Fill device arrays with particle manager's default values.
+	buffer_detected();
+
+	cudaStreamCreateWithFlags(&buffer_stream, cudaStreamNonBlocking);
 }
 
 template<typename scatter_list_t,
@@ -64,6 +93,25 @@ CPU gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::~gpu_driver()
 {
 	particle_manager_t::destroy(_particles);
 	material_manager_t::destroy(_materials);
+	cudaFree(curand_states);
+
+	cudaFree(buffer_din_data);
+	cudaFree(buffer_din_particles);
+	cudaFree(buffer_din_tags);
+
+	cudaFree(buffer_dout_status);
+	cudaFree(buffer_dout_particles);
+	cudaFree(buffer_dout_tags);
+
+	cudaFreeHost(buffer_hin_data);
+	cudaFreeHost(buffer_hin_particles);
+	cudaFreeHost(buffer_hin_tags);
+
+	cudaFreeHost(buffer_hout_status);
+	cudaFreeHost(buffer_hout_particles);
+	cudaFreeHost(buffer_hout_tags);
+
+	cudaStreamDestroy(buffer_stream);
 }
 
 template<typename scatter_list_t,
@@ -83,11 +131,11 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::do_iteration()
+template<typename detect_function>
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::flush_detected(
+	detect_function func)
 {
-	init();
-	_particles.sort();
-	events();
+	_particles.flush_detected(func);
 }
 
 template<typename scatter_list_t,
@@ -109,15 +157,175 @@ CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::get_detect
 	return _particles.get_detected_count();
 }
 
+
+template<typename scatter_list_t,
+	typename intersect_t,
+	typename geometry_manager_t
+>
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::allocate_input_buffers(
+	particle_index_t N
+)
+{
+	if (buffer_din_data != nullptr)
+	{
+		cudaFree(buffer_din_data);
+		buffer_din_data = nullptr;
+	}
+	if (buffer_din_particles != nullptr)
+	{
+		cudaFree(buffer_din_particles);
+		buffer_din_particles = nullptr;
+	}
+	if (buffer_din_tags != nullptr)
+	{
+		cudaFree(buffer_din_tags);
+		buffer_din_tags = nullptr;
+	}
+
+	if (buffer_hin_data != nullptr)
+	{
+		cudaFreeHost(buffer_hin_data);
+		buffer_hin_data = nullptr;
+	}
+	if (buffer_hin_particles != nullptr)
+	{
+		cudaFreeHost(buffer_hin_particles);
+		buffer_hin_particles = nullptr;
+	}
+	if (buffer_hin_tags != nullptr)
+	{
+		cudaFreeHost(buffer_hin_tags);
+		buffer_hin_tags = nullptr;
+	}
+
+	buffer_in_size = N;
+	cuda::cuda_new<bool>(&buffer_din_data, N);
+	cuda::cuda_new<particle>(&buffer_din_particles, N);
+	cuda::cuda_new<uint32_t>(&buffer_din_tags, N);
+	cudaMallocHost(&buffer_hin_data, N*sizeof(bool));
+	cudaMallocHost(&buffer_hin_particles, N*sizeof(particle));
+	cudaMallocHost(&buffer_hin_tags, N*sizeof(uint32_t));
+
+	kernels::init_buffer_data<<<_num_blocks, _threads_per_block>>>(buffer_din_data, N);
+}
+
+template<typename scatter_list_t,
+	typename intersect_t,
+	typename geometry_manager_t
+>
+CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push_to_buffer(
+	particle* particles,
+	uint32_t* tags,
+	particle_index_t N
+) -> particle_index_t
+{
+	// Copy device to host
+	cudaMemcpyAsync(buffer_hin_data, buffer_din_data, buffer_in_size*sizeof(bool),
+		cudaMemcpyDeviceToHost, buffer_stream);
+	cudaMemcpyAsync(buffer_hin_particles, buffer_din_particles, buffer_in_size*sizeof(particle),
+		cudaMemcpyDeviceToHost, buffer_stream);
+	cudaMemcpyAsync(buffer_hin_tags, buffer_din_tags, buffer_in_size*sizeof(uint32_t),
+		cudaMemcpyDeviceToHost, buffer_stream);
+	cudaStreamSynchronize(buffer_stream);
+
+	// Copy data
+	particle_index_t N_pushed = 0;
+	for (particle_index_t i = 0; i < std::min(N, buffer_in_size); ++i)
+	{
+		if (buffer_hin_data[i] != 0)
+			continue;
+
+		buffer_hin_data[i] = 1;
+		buffer_hin_particles[i] = particles[N_pushed];
+		buffer_hin_tags[i] = tags[N_pushed];
+		++N_pushed;
+	}
+
+	// Copy back to device
+	cudaMemcpyAsync(buffer_din_data, buffer_hin_data, buffer_in_size*sizeof(bool),
+		cudaMemcpyHostToDevice, buffer_stream);
+	cudaMemcpyAsync(buffer_din_particles, buffer_hin_particles, buffer_in_size*sizeof(particle),
+		cudaMemcpyHostToDevice, buffer_stream);
+	cudaMemcpyAsync(buffer_din_tags, buffer_hin_tags, buffer_in_size*sizeof(uint32_t),
+		cudaMemcpyHostToDevice, buffer_stream);
+	cudaStreamSynchronize(buffer_stream);
+
+	return N_pushed;
+}
+
+template<typename scatter_list_t,
+	typename intersect_t,
+	typename geometry_manager_t
+>
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push_to_simulation()
+{
+	_particles.sort();
+	kernels::push_buffer_in<<<_num_blocks, _threads_per_block>>>(
+		_particles, buffer_din_data, buffer_din_particles, buffer_din_tags, buffer_in_size);
+}
+
+template<typename scatter_list_t,
+	typename intersect_t,
+	typename geometry_manager_t
+>
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::buffer_detected()
+{
+	cudaMemcpy(buffer_dout_status, _particles._status,
+		_particles._capacity*sizeof(status_t), cudaMemcpyDeviceToDevice);
+	cudaMemcpy(buffer_dout_particles, _particles._particles,
+		_particles._capacity*sizeof(particle), cudaMemcpyDeviceToDevice);
+	cudaMemcpy(buffer_dout_tags, _particles._tags,
+		_particles._capacity*sizeof(uint32_t), cudaMemcpyDeviceToDevice);
+
+	kernels::terminate_detected<<<_num_blocks, _threads_per_block>>>(_particles);
+}
+
 template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
 template<typename detect_function>
-CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::flush_detected(
-	detect_function func)
+CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::flush_buffered(
+	detect_function function) -> particle_index_t
 {
-	_particles.flush_detected(func);
+	const auto capacity = _particles._capacity;
+
+	// Copy device to host
+	cudaMemcpyAsync(buffer_hout_status, buffer_dout_status, capacity*sizeof(status_t),
+		cudaMemcpyDeviceToHost, buffer_stream);
+	cudaMemcpyAsync(buffer_hout_particles, buffer_dout_particles, capacity*sizeof(particle),
+		cudaMemcpyDeviceToHost, buffer_stream);
+	cudaMemcpyAsync(buffer_hout_tags, buffer_dout_tags, capacity*sizeof(uint32_t),
+		cudaMemcpyDeviceToHost, buffer_stream);
+	cudaStreamSynchronize(buffer_stream);
+
+	particle_index_t N_running = 0;
+	for (particle_index_t i = 0; i < capacity; ++i)
+	{
+		if (buffer_hout_status[i] != particle_manager_t::TERMINATED
+			&& buffer_hout_status[i] != particle_manager_t::DETECTED)
+		{
+			++N_running;
+		}
+
+		if (buffer_hout_status[i] == particle_manager_t::DETECTED)
+		{
+			function(buffer_hout_particles[i], buffer_hout_tags[i]);
+		}
+	}
+
+	return N_running;
+}
+
+template<typename scatter_list_t,
+	typename intersect_t,
+	typename geometry_manager_t
+>
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::do_iteration()
+{
+	init();
+	_particles.sort();
+	events();
 }
 
 template<typename scatter_list_t,
@@ -158,6 +366,49 @@ __global__ void kernels::init_random_states(
 		return;
 
 	curand_states[i] = util::random_generator<true>(seed, i);
+}
+
+__global__ void kernels::init_buffer_data(bool* buffer_data, size_t N)
+{
+	const auto i = threadIdx.x+blockIdx.x*blockDim.x;
+	if(i < N)
+		buffer_data[i] = 0;
+}
+
+template<typename particle_manager_t>
+__global__ void kernels::push_buffer_in(
+	particle_manager_t particles,
+	bool* buffer_in_data,
+	particle* buffer_in_particles,
+	uint32_t* buffer_in_tags,
+	typename particle_manager_t::particle_index_t buffer_in_size)
+{
+	const auto i = threadIdx.x+blockIdx.x*blockDim.x;
+	if (i >= buffer_in_size || i >= particles.get_capacity())
+		return;
+
+	if (buffer_in_data[i] != 1)
+		return;
+
+	const auto particle_idx = particles.get_particle_index(particles.get_capacity() - i - 1);
+
+	if (!particles.is_terminated(particle_idx))
+		return;
+
+	particles.add_particle(particle_idx, buffer_in_particles[i], buffer_in_tags[i]);
+	buffer_in_data[i] = 0;
+}
+
+template<typename particle_manager_t>
+__global__ void kernels::terminate_detected(particle_manager_t particles)
+{
+	const auto particle_idx = threadIdx.x + blockIdx.x*blockDim.x;
+
+	if(!particles.exists(particle_idx))
+		return;
+
+	if (particles.is_detected(particle_idx))
+		particles.terminate(particle_idx);
 }
 
 template<typename particle_manager_t, typename material_manager_t, typename geometry_manager_t>

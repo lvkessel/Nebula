@@ -257,6 +257,12 @@ PHYSICS particle const & gpu_particle_manager<material_manager_t>::operator[](pa
 }
 
 template<typename material_manager_t>
+PHYSICS auto gpu_particle_manager<material_manager_t>::get_capacity() const
+-> particle_index_t
+{
+	return _capacity;
+}
+template<typename material_manager_t>
 PHYSICS bool gpu_particle_manager<material_manager_t>::exists(particle_index_t i) const
 {
 	return i < _capacity;
@@ -322,7 +328,29 @@ PHYSICS bool gpu_particle_manager<material_manager_t>::next_intersect(particle_i
 {
 	return _status[i] == INTERSECT_EVENT;
 }
+template<typename material_manager_t>
+PHYSICS bool gpu_particle_manager<material_manager_t>::is_detected(particle_index_t i) const
+{
+	return _status[i] == DETECTED;
+}
+template<typename material_manager_t>
+PHYSICS bool gpu_particle_manager<material_manager_t>::is_terminated(particle_index_t i) const
+{
+	return _status[i] == TERMINATED;
+}
 
+template<typename material_manager_t>
+PHYSICS void gpu_particle_manager<material_manager_t>::add_particle(
+	particle_index_t target_idx,
+	particle new_particle,
+	uint32_t new_tag)
+{
+	_status[target_idx] = NO_EVENT;
+	_particles[target_idx] = new_particle;
+	_tags[target_idx] = new_tag;
+	_material_idx[target_idx] = -123; // TODO
+	_last_triangle[target_idx] = nullptr;
+}
 template<typename material_manager_t>
 PHYSICS bool gpu_particle_manager<material_manager_t>::secondary_slot_free() const
 {

@@ -30,6 +30,8 @@ public:
 	inline PHYSICS particle & operator[](particle_index_t i);
 	inline PHYSICS particle const & operator[](particle_index_t i) const;
 
+	// Get max number of particles we can hold
+	inline PHYSICS particle_index_t get_capacity() const;
 	// Is there a memory location for this particle?
 	inline PHYSICS bool exists(particle_index_t i) const;
 	// Is particle active == not PENDING, DETECTED or TERMINATED
@@ -48,7 +50,11 @@ public:
 	inline PHYSICS bool next_elastic(particle_index_t i) const;
 	inline PHYSICS bool next_inelastic(particle_index_t i) const;
 	inline PHYSICS bool next_intersect(particle_index_t i) const;
+	inline PHYSICS bool is_detected(particle_index_t i) const;
+	inline PHYSICS bool is_terminated(particle_index_t i) const;
 
+	// Add a new particle, without checking that the target index is actually free.
+	inline PHYSICS void add_particle(particle_index_t target_idx, particle new_particle, uint32_t new_tag);
 	// Is a secondary slot free for this thread to write in?
 	inline PHYSICS bool secondary_slot_free() const;
 	// Assumes that secondary_slot_free() returns true!
@@ -95,6 +101,12 @@ private:
 		NEW_SECONDARY   = 0b1110,
 		TERMINATED      = 0b0011
 	};
+
+	template<typename scatter_list_t,
+		typename intersect_t,
+		typename geometry_manager_t
+	>
+	friend class gpu_driver;
 };
 
 }} // namespace nbl::drivers

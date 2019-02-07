@@ -156,27 +156,33 @@ int main(int argc, char** argv)
 		batch_size = size_t(batch_factor*capacity / accumulator);
 	}
 	std::clog << "\nframe_size = " << frame_size << " | batch_size = " << batch_size << std::endl;
+	d.allocate_input_buffers(batch_size);
 
 	//std::ofstream of("tmp.bin", std::ofstream::binary);
 	std::ostream& of = std::cout;
 
 	for (;;)
 	{
-		// Push new batch
+		// Copy the simulation to buffer,
+		// push new data into the simulation
+		d.buffer_detected();
+		d.push_to_simulation();
+		cudaDeviceSynchronize();
+
+		// Execute frame
+		for (uint32_t i = 0; i < frame_size; ++i)
+			d.do_iteration();
+
+		// Push new batch asynchronously
 		{
-			auto particles_pushed = d.push(next_primary, next_tag, std::min(batch_size, primaries_to_go));
+			auto particles_pushed = d.push_to_buffer(next_primary, next_tag, std::min(batch_size, primaries_to_go));
 			next_primary += particles_pushed;
 			next_tag += particles_pushed;
 			primaries_to_go -= particles_pushed;
 		}
 
-		// Execute frame
-		for (uint32_t i = 0; i < frame_size; ++i)
-			d.do_iteration();
-		cudaDeviceSynchronize();
-
-		// Flush output data
-		d.flush_detected([&of, &pixels](particle p, uint32_t t)
+		// Output detected electrons from buffer
+		auto running_count = d.flush_buffered([&of, &pixels](particle p, uint32_t t)
 		{
 			float buffer[7];
 			buffer[0] = p.pos.x; buffer[1] = p.pos.y; buffer[2] = p.pos.z;
@@ -184,24 +190,15 @@ int main(int argc, char** argv)
 			buffer[6] = p.kin_energy;
 			of.write(reinterpret_cast<const char*>(buffer), sizeof(buffer));
 			of.write(reinterpret_cast<const char*>(&pixels[t]), sizeof(int2));
-/*
-			// Write out
-			of.write(reinterpret_cast<const char*>(&(p.pos.x)), sizeof(p.pos.x));
-			of.write(reinterpret_cast<const char*>(&(p.pos.y)), sizeof(p.pos.y));
-			of.write(reinterpret_cast<const char*>(&(p.pos.z)), sizeof(p.pos.z));
-			of.write(reinterpret_cast<const char*>(&(p.dir.x)), sizeof(p.dir.x));
-			of.write(reinterpret_cast<const char*>(&(p.dir.y)), sizeof(p.dir.y));
-			of.write(reinterpret_cast<const char*>(&(p.dir.z)), sizeof(p.dir.z));
-			of.write(reinterpret_cast<const char*>(&(p.kin_energy)), sizeof(p.kin_energy));
-*/
 		});
 
-		// Show progress, end when finished.
-		auto running_count = d.get_running_count();
-
+		// Show progress
 		std::clog << " \rProgress "
 			<< std::fixed << std::setprecision(2) << 100 * (1 - ((double)primaries_to_go / primaries.size()))
 			<< "%, # Running: " << running_count;
+
+		cudaDeviceSynchronize();
+
 		if (running_count == 0 && primaries_to_go == 0)
 			break;
 	}

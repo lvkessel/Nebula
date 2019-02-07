@@ -56,30 +56,26 @@ public:
 	CPU ~gpu_driver();
 
 	/**
-	 * \brief Add new primary particles to the simulation.
+	 * \brief Add new primary particles to the simulation, blocking the simulation.
+	 *
+	 * This function blocks the simulation and it is slow, so it should be avoided.
+	 *
+	 * The actual number of particles pushed may be different than requested if
+	 * the buffer is still (partially) full or smaller than requested.
 	 *
 	 * \param particles Pointer to an array of particles to be added.
 	 * \param tags      Pointer to the corresponding array of tags.
 	 * \param N         Number of particles to be added.
+	 *
+	 * \return Number of particles added to the simulation.
 	 */
 	inline CPU particle_index_t push(particle* particles, uint32_t* tags, particle_index_t N);
-
-	/// Perform a single iteration of the simulation for all particles.
-	CPU void do_iteration();
-
-	/**
-	 * \brief Get number of particles currently in the simulation.
-	 *
-	 * More specifically, those that are not terminated or detected.
-	 */
-	CPU particle_index_t get_running_count() const;
-
-	/// Get number of detected particles currently in the simulation.
-	CPU particle_index_t get_detected_count() const;
 
 	/**
 	 * \brief Set the detected particles to terminated, calling a callback
 	 *        before doing so.
+	 *
+	 * This function blocks the simulation and it is slow, so it should be avoided.
 	 *
 	 * The callback function receives the particle data and the tag that
 	 * belonged to the primary electron that initated the cascade the detected
@@ -90,6 +86,83 @@ public:
 	 */
 	template<typename detect_function>
 	CPU void flush_detected(detect_function function);
+
+	/**
+	 * \brief Get number of particles currently in the simulation.
+	 *
+	 * More specifically, those that are not terminated or detected.
+	 *
+	 * This function blocks the simulation and it is slow, so it should be avoided.
+	 */
+	CPU particle_index_t get_running_count() const;
+
+	/**
+	 * \brief Get number of detected particles currently in the simulation.
+	 *
+	 * This function blocks the simulation and it is slow, so it should be avoided.
+	 */
+	CPU particle_index_t get_detected_count() const;
+
+
+
+	/**
+	 * \brief Allocate "input buffers" for asynchronously pushing new particles
+	 *        to the simulation.
+	 *
+	 * \param N Size of the buffer (maximum number particles pushed).
+	 */
+	CPU void allocate_input_buffers(particle_index_t N);
+
+	/**
+	 * \brief Push particles to the input buffer, not adding them to the simulation.
+	 *
+	 * This function may be run asynchronously to the simulation.
+	 * The actual number of particles pushed may be different than requested if
+	 * the buffer is still (partially) full or smaller than requested.
+	 *
+	 * \param particles Pointer to an array of particles to be added.
+	 * \param tags      Pointer to the corresponding array of tags.
+	 * \param N         Number of particles to be added.
+	 *
+	 * \return Number of particles added to the simulation.
+	 */
+	CPU particle_index_t push_to_buffer(particle* particles, uint32_t* tags, particle_index_t N);
+
+	/**
+	 * \brief Push electrons in the input buffer to the simulation.
+	 */
+	CPU void push_to_simulation();
+
+
+	/**
+	 * \brief Buffer the detected electrons in the current simulation memory to
+	 *        an "output buffer", and free their memory for the main simulation.
+	 *
+	 * Technically, this function copies the entire simulation state into a
+	 * buffer on the GPU (very fast). Functions such as ::flush_buffered then
+	 * copy this buffer to the CPU.
+	 */
+	CPU void buffer_detected();
+
+	/**
+	 * \brief Call callback function for each detected electron in the output
+	 *        buffer.
+	 *
+	 * This function may be run asynchronously to the simulation.
+	 *
+	 * The callback function receives the particle data and the tag that
+	 * belonged to the primary electron that initated the cascade the detected
+	 * particle is part of.
+	 *
+	 * \param function Callback function to be called for each detected particle.
+	 *                 Should have signature void(particle const &, uint32_t).
+	 * \return Number of active electrons still in the simulation.
+	 */
+	template<typename detect_function>
+	CPU particle_index_t flush_buffered(detect_function function);
+
+	/// Perform a single iteration of the simulation for all particles.
+	CPU void do_iteration();
 
 private:
 	particle_manager_t _particles;
@@ -107,6 +180,27 @@ private:
 	// Functions called by do_iteration()
 	inline CPU void init();
 	inline CPU void events();
+
+
+	// Stream used for copying to/from input/output buffers.
+	cudaStream_t buffer_stream = {};
+
+	// Input buffers. "din" are on device, "hin" on host.
+	particle_index_t buffer_in_size       = 0;
+	bool*            buffer_din_data      = nullptr; // Value 0: no new electron, value 1: new electron
+	particle*        buffer_din_particles = nullptr;
+	uint32_t*        buffer_din_tags      = nullptr;
+	bool*            buffer_hin_data      = nullptr;
+	particle*        buffer_hin_particles = nullptr;
+	uint32_t*        buffer_hin_tags      = nullptr;
+
+	// Output buffers. "dout" are on device, "hout" on host.
+	status_t* buffer_dout_status    = nullptr;
+	particle* buffer_dout_particles = nullptr;
+	uint32_t* buffer_dout_tags      = nullptr;
+	status_t* buffer_hout_status    = nullptr;
+	particle* buffer_hout_particles = nullptr;
+	uint32_t* buffer_hout_tags      = nullptr;
 
 	gpu_driver(gpu_driver const &) = delete;
 	gpu_driver& operator=(gpu_driver const &) = delete;
