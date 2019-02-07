@@ -17,26 +17,15 @@
 #include "legacy_thomas/load_pri_file.h"
 #include "legacy_thomas/load_mat_file.h"
 
-#define USE_GPU true
-
 // Main typedefs
-using geometry_t = nbl::geometry::octree<USE_GPU>;
-using material_t = material<scatter_physics<USE_GPU>>;
+using geometry_t = nbl::geometry::octree<true>;
+using material_t = material<scatter_physics<true>>;
 
-
-#if USE_GPU
 using driver = nbl::drivers::gpu_driver<
-	scatter_physics<USE_GPU>,
+	scatter_physics<true>,
 	intersect_t,
 	geometry_t
 >;
-#else
-using driver = nbl::drivers::cpu_driver<
-	scatter_physics<USE_GPU>,
-	intersect_t,
-	geometry_t
->;
-#endif
 
 // TODO: material not really destroyed.
 material_t load_material(std::string const & filename)
@@ -127,11 +116,7 @@ int main(int argc, char** argv)
 	std::clog << "Loaded " << materials.size() << " materials." << std::endl;
 
 	// Prepare driver
-#if USE_GPU
 	driver d(capacity, geometry, inter, materials, seed);
-#else
-	driver d(geometry, inter, materials, seed);
-#endif
 
 	// First, do the prescan
 	std::vector<std::pair<uint32_t, uint32_t>> prescan_stats; // Holds (running_count, detected_count)
@@ -188,9 +173,7 @@ int main(int argc, char** argv)
 		// Execute frame
 		for (uint32_t i = 0; i < frame_size; ++i)
 			d.do_iteration();
-#if USE_GPU
 		cudaDeviceSynchronize();
-#endif
 
 		// Flush output data
 		d.flush_detected([&of, &pixels](particle p, uint32_t t)
@@ -223,10 +206,8 @@ int main(int argc, char** argv)
 			break;
 	}
 
-#if USE_GPU
 	cudaError_t err = cudaDeviceSynchronize();
 	std::clog << std::endl << "CUDA error code " << err << std::endl;
-#endif
 
 	std::clog << "Done." << std::endl;
 	//std::cin.get();
