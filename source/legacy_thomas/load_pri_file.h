@@ -7,7 +7,7 @@
 #include <string>
 #include "../core/particle.h"
 
-#if !CUDA_COMPILER_AVAILABLE
+#if !CUDA_HEADERS_AVAILABLE
 struct int2 { int x, y; };
 #endif
 

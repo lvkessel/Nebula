@@ -14,8 +14,27 @@
  */
 #ifdef __CUDACC__
 	#define CUDA_COMPILER_AVAILABLE 1
+	#define CUDA_HEADERS_AVAILABLE 1
 #else
 	#define CUDA_COMPILER_AVAILABLE 0
+#endif
+
+/**
+ * \def CUDA_HEADERS_AVAILABLE
+ * \brief Set to 1 if the CUDA headers are available, and to zero otherwise.
+ *
+ * This is actually set by CMake.
+ *
+ * The reason for having this preprocessor statement is the following. CMake
+ * will compile .cu files with nvcc, and .cpp files with gcc. But when compiling
+ * for a GPU device, we do want to use CUDA's float3 etc in .cpp code. So we
+ * need to include the CUDA runtime in that situation.
+ *
+ * The present file provides a fallback definition for CUDA_HEADERS_AVAILABLE if
+ * it is not already defined, based on whether nvcc is being used.
+ */
+#ifndef CUDA_HEADERS_AVAILABLE
+	#define CUDA_HEADERS_AVAILABLE 0
 #endif
 
 /**
@@ -29,6 +48,15 @@
 #else
 	#define CUDA_COMPILING 0
 #endif
+
+
+// Load CUDA headers
+#if CUDA_HEADERS_AVAILABLE
+	#include <cuda_runtime.h>
+	#include <device_launch_parameters.h>
+	#include <device_functions.h>
+#endif
+
 
 /**
  * \def CPU
@@ -46,11 +74,6 @@
  * This is common for the physics code, hence the name.
  */
 #if CUDA_COMPILER_AVAILABLE
-	// Load CUDA headers
-	#include <cuda_runtime.h>
-	#include <device_launch_parameters.h>
-	#include <device_functions.h>
-
 	#define CPU __host__                // CPU-only code
 	#define GPU __device__              // GPU-only code
 	#define PHYSICS __host__ __device__ // Physics are GPU and CPU code
