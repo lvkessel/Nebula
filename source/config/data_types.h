@@ -29,7 +29,7 @@ using std::size_t;
  * \brief  4-dimensional vector, datatype is ::real.
  */
 // scalar and vector types
-#if CUDA_AVAILABLE
+#if CUDA_COMPILER_AVAILABLE
 	#if USE_DOUBLE
 		using real = double;
 		using vec3 = double3;
@@ -39,7 +39,7 @@ using std::size_t;
 		using vec3 = float3;
 		using vec4 = float4;
 	#endif // USE_DOUBLE
-#else // CUDA_AVAILABLE
+#else // CUDA_COMPILER_AVAILABLE
 	#if USE_DOUBLE
 		using real = double;
 		struct vec3 { double x, y, z; };
@@ -49,7 +49,7 @@ using std::size_t;
 		struct vec3 { float x, y, z; };
 		struct vec4 { float x, y, z, w; };
 	#endif // USE_DOUBLE
-#endif // CUDA_AVAILABLE
+#endif // CUDA_COMPILER_AVAILABLE
 
 /// Small value limiting accuracy of numerical computations
 constexpr real EPSILON = 10 * std::numeric_limits<real>::epsilon();

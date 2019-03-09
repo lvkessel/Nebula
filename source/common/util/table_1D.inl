@@ -87,7 +87,7 @@ namespace detail
 		}
 	};
 
-#if CUDA_AVAILABLE
+#if CUDA_COMPILER_AVAILABLE
 	template<typename T>
 	struct table_1D_factory<T, true>
 	{
@@ -120,7 +120,7 @@ namespace detail
 			table._n = 0;
 		}
 	};
-#endif // CUDA_AVAILABLE
+#endif // CUDA_COMPILER_AVAILABLE
 } // namespace detail
 
 }} // namespace nbl::util

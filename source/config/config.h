@@ -23,10 +23,10 @@
 #include "../common/scalar_math.h"
 #include "../common/vector_math.h"
 
-#if CUDA_AVAILABLE
+#if CUDA_COMPILER_AVAILABLE
 	#include "../common/cuda/cuda_new.h"
 	#include "../common/cuda/cuda_mem_scope.h"
-#endif // CUDA_AVAILABLE
+#endif // CUDA_COMPILER_AVAILABLE
 
 // TODO: Put these somewhere nicer.
 // Define range and resolution for cross section tables.

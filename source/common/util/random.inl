@@ -29,7 +29,7 @@ namespace detail
 		std::mt19937 _generator;
 	};
 
-#if CUDA_AVAILABLE
+#if CUDA_COMPILER_AVAILABLE
 	#include "curand_kernel.h"
 
 	template<>
@@ -61,7 +61,7 @@ namespace detail
 		curandState _rand_state;
 	};
 
-#endif // CUDA_AVAILABLE
+#endif // CUDA_COMPILER_AVAILABLE
 } // namespace detail
 
 }} // namespace nbl::util

@@ -61,7 +61,7 @@ namespace detail
 		}
 	};
 
-#if CUDA_AVAILABLE
+#if CUDA_COMPILER_AVAILABLE
 	template<typename material_t>
 	struct material_manager_factory<material_t, true>
 	{
@@ -94,7 +94,7 @@ namespace detail
 			manager._capacity = 0;
 		}
 	};
-#endif
+#endif // CUDA_COMPILER_AVAILABLE
 } // namespace detail
 
 }} // namespace nbl::drivers

@@ -396,7 +396,7 @@ namespace detail
 		}
 	};
 
-#if CUDA_AVAILABLE
+#if CUDA_COMPILER_AVAILABLE
 	template<>
 	struct octree_factory<true>
 	{
@@ -440,7 +440,7 @@ namespace detail
 			geometry._N = 0;
 		}
 	};
-#endif // CUDA_AVAILABLE
+#endif // CUDA_COMPILER_AVAILABLE
 } // namespace detail
 
 }} // namespace nbl::geometry

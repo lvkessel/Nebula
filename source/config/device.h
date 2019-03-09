@@ -7,15 +7,15 @@
  */
 
 /**
- * \def CUDA_AVAILABLE
- * \brief Set to 1 if CUDA is available, and to zero otherwise.
+ * \def CUDA_COMPILER_AVAILABLE
+ * \brief Set to 1 if the CUDA compiler is available, and to zero otherwise.
  *
  * This is not a setting! We just check if the CUDA compiler is being used.
  */
 #ifdef __CUDACC__
-	#define CUDA_AVAILABLE 1
+	#define CUDA_COMPILER_AVAILABLE 1
 #else
-	#define CUDA_AVAILABLE 0
+	#define CUDA_COMPILER_AVAILABLE 0
 #endif
 
 /**
@@ -45,7 +45,7 @@
  * \brief Designates that a given function may either be run on a CPU or a GPU.
  * This is common for the physics code, hence the name.
  */
-#if CUDA_AVAILABLE
+#if CUDA_COMPILER_AVAILABLE
 	// Load CUDA headers
 	#include <cuda_runtime.h>
 	#include <device_launch_parameters.h>
@@ -54,10 +54,10 @@
 	#define CPU __host__                // CPU-only code
 	#define GPU __device__              // GPU-only code
 	#define PHYSICS __host__ __device__ // Physics are GPU and CPU code
-#else // CUDA_AVAILABLE
+#else // CUDA_COMPILER_AVAILABLE
 	#define CPU
 	#define GPU
 	#define PHYSICS
-#endif
+#endif // CUDA_COMPILER_AVAILABLE
 
 #endif // __DEVICE_H_
