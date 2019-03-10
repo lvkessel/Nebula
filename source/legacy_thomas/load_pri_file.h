@@ -59,7 +59,7 @@ std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filenam
 
 		particle_vec.push_back({ primary, pixel });
 	}
-	ifs.close(); 
+	ifs.close();
 	return particle_vec;
 }
 

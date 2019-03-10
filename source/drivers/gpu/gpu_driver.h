@@ -110,6 +110,9 @@ public:
 	 *        to the simulation.
 	 *
 	 * \param N Size of the buffer (maximum number particles pushed).
+	 *
+	 * \see push_to_buffer
+	 * \see push_to_simulation
 	 */
 	CPU void allocate_input_buffers(particle_index_t N);
 
@@ -125,11 +128,17 @@ public:
 	 * \param N         Number of particles to be added.
 	 *
 	 * \return Number of particles added to the simulation.
+	 *
+	 * \see allocate_input_buffers
+	 * \see push_to_simulation
 	 */
 	CPU particle_index_t push_to_buffer(particle* particles, uint32_t* tags, particle_index_t N);
 
 	/**
 	 * \brief Push electrons in the input buffer to the simulation.
+	 *
+	 * \see allocate_input_buffers
+	 * \see push_to_buffer
 	 */
 	CPU void push_to_simulation();
 
@@ -139,8 +148,10 @@ public:
 	 *        an "output buffer", and free their memory for the main simulation.
 	 *
 	 * Technically, this function copies the entire simulation state into a
-	 * buffer on the GPU (very fast). Functions such as ::flush_buffered then
-	 * copy this buffer to the CPU.
+	 * buffer on the GPU (very fast). Other functions then copy this buffer to
+	 * the CPU.
+	 *
+	 * \see flush_buffered
 	 */
 	CPU void buffer_detected();
 
@@ -157,6 +168,8 @@ public:
 	 * \param function Callback function to be called for each detected particle.
 	 *                 Should have signature void(particle const &, uint32_t).
 	 * \return Number of active electrons still in the simulation.
+	 *
+	 * \see buffer_detected
 	 */
 	template<typename detect_function>
 	CPU particle_index_t flush_buffered(detect_function function);
