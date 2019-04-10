@@ -15,6 +15,13 @@ std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filenam
 {
 	std::vector<std::pair<particle, int2>> particle_vec;
 
+	// Keep track of the number of times a primary electron is wrong,
+	// and keep an example.
+	std::pair<size_t, vec3> outside_geom;
+	std::pair<size_t, float> low_energy;
+	std::pair<size_t, float> high_energy;
+	std::pair<size_t, vec3> direction;
+
 	std::ifstream ifs(filename, std::ifstream::binary);
 	if (!ifs.is_open())
 		return particle_vec;
@@ -42,24 +49,60 @@ std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filenam
 		// NAN < xxx == FALSE, so this form works correctly if NaN is read from the file
 		if (!(primary.pos.x > min_pos.x && primary.pos.y > min_pos.y && primary.pos.z > min_pos.z &&
 			primary.pos.x < max_pos.x && primary.pos.y < max_pos.y && primary.pos.z < max_pos.z))
-			std::clog << "WARNING: primary electron starting outside geometry at ("
-				<< primary.pos.x << ", " << primary.pos.y << ", " << primary.pos.z << ")." << std::endl;
+		{
+			if (outside_geom.first == 0)
+				outside_geom.second = primary.pos;
+			++outside_geom.first;
+		}
 
 		if (!(primary.kin_energy > EPSILON))
-			std::clog << "WARNING: primary electron starting with low kinetic energy ("
-				<< primary.kin_energy << " eV)." << std::endl;
+		{
+			if (low_energy.first == 0)
+				low_energy.second = primary.kin_energy;
+			++low_energy.first;
+		}
 
 		if (primary.kin_energy > K_max)
-			std::clog << "WARNING: primary electron starting with kinetic energy higher than the hard-coded limit ("
-				<< (primary.kin_energy/1000) << " keV, max " << (K_max/1000) << " keV). Complain to the developers." << std::endl;
+		{
+			if (high_energy.first == 0)
+				high_energy.second = primary.kin_energy;
+			++high_energy.first;
+		}
 
 		if (!(std::abs(primary.dir.x) > EPSILON || std::abs(primary.dir.y) > EPSILON || std::abs(primary.dir.z) > EPSILON))
-			std::clog << "WARNING: primary electron starts with unphysical direction vector ("
-				<< primary.dir.x << ", " << primary.dir.y << ", " << primary.dir.z << ")." << std::endl;
+		{
+			if (direction.first == 0)
+				direction.second = primary.dir;
+			++direction.first;
+		}
 
 		particle_vec.push_back({ primary, pixel });
 	}
 	ifs.close();
+
+	if (outside_geom.first > 0)
+		std::clog << "WARNING: " << outside_geom.first
+			<< " primary electrons starting outside geometry. Example: ("
+			<< outside_geom.second.x << ", "
+			<< outside_geom.second.y << ", "
+			<< outside_geom.second.z << ") nm." << std::endl;
+	if (low_energy.first > 0)
+		std::clog << "WARNING: " << low_energy.first
+			<< " primary electrons starting with low kinetic energy. Example: "
+			<< low_energy.second << " eV." << std::endl;
+	if (high_energy.first > 0)
+		std::clog << "WARNING: " << high_energy.first
+			<< " primary electrons starting with kinetic energy higher than the hard-coded limit."
+			<< " Limit is " << (K_max/1000) << " keV, example energy is "
+			<< (high_energy.second/1000) << " keV. Complain to the developers." << std::endl;
+	if (direction.first > 0)
+		std::clog << "WARNING: " << direction.first
+			<< " primary electrons start with unphysical direction vector. Example: ("
+			<< direction.second.x << ", "
+			<< direction.second.y << ", "
+			<< direction.second.z << ")." << std::endl;
+
+
 	return particle_vec;
 }
 
