@@ -79,20 +79,23 @@ int main(int argc, char** argv)
 	size_t prescan_size = 1000;
 	real batch_factor = .9_r;
 	typename driver::seed_t seed = 0x14f8214e78c7e39b;
+	bool sort_primaries = false;
 
 	cli_params p(argc, argv);
 	p.get_optional_flag("capacity", capacity);
 	p.get_optional_flag("prescan-size", prescan_size);
 	p.get_optional_flag("batch-factor", batch_factor);
 	p.get_optional_flag("seed", seed);
+	p.get_optional_flag("sort-primaries", sort_primaries);
 
 	const std::string usage("Usage: " + p.get_program_name() +
 		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n"
 		"Options:\n"
-		"\t--capacity     [1000000]\n"
-		"\t--prescan-size [1000]\n"
-		"\t--batch-factor [0.9]\n"
-		"\t--seed         [0x14f8214e78c7e39b]\n");
+		"\t--capacity       [1000000]\n"
+		"\t--prescan-size   [1000]\n"
+		"\t--batch-factor   [0.9]\n"
+		"\t--seed           [0x14f8214e78c7e39b]\n"
+		"\t--sort-primaries [0]\n");
 
 	// Setup time logging
 	timelog timer;
@@ -131,7 +134,8 @@ int main(int argc, char** argv)
 	t1 = std::chrono::steady_clock::now();
 	std::vector<particle> primaries; std::vector<int2> pixels;
 	std::tie(primaries, pixels) = load_pri_file(pos_flags[1], geometry.AABB_min(), geometry.AABB_max());
-	sort_pri_file(primaries, pixels);
+	if (sort_primaries)
+		sort_pri_file(primaries, pixels);
 	prescan_shuffle(primaries, pixels, prescan_size);
 	t2 = std::chrono::steady_clock::now();
 	timer.add("Loading primary electrons", t1, t2);
