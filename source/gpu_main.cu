@@ -130,8 +130,9 @@ int main(int argc, char** argv)
 	std::clog << "Loading primary electrons..." << std::endl;
 	t1 = std::chrono::steady_clock::now();
 	std::vector<particle> primaries; std::vector<int2> pixels;
-	std::tie(primaries, pixels) = separate_pairs(
-		sort_pri_file(load_pri_file(pos_flags[1], geometry.AABB_min(), geometry.AABB_max()), prescan_size));
+	std::tie(primaries, pixels) = load_pri_file(pos_flags[1], geometry.AABB_min(), geometry.AABB_max());
+	sort_pri_file(primaries, pixels);
+	prescan_shuffle(primaries, pixels, prescan_size);
 	t2 = std::chrono::steady_clock::now();
 	timer.add("Loading primary electrons", t1, t2);
 

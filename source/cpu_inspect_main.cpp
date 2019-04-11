@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 
 	// Load primaries
 	std::vector<particle> primaries; std::vector<int2> pixels;
-	std::tie(primaries, pixels) = separate_pairs(load_pri_file(argv[2], geometry.AABB_min(), geometry.AABB_max()));
+	std::tie(primaries, pixels) = load_pri_file(argv[2], geometry.AABB_min(), geometry.AABB_max());
 	if (primaries.empty())
 	{
 		std::clog << "Error: could not load primary electrons!\n" << usage << std::endl;

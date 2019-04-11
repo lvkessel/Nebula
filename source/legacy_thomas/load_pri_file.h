@@ -11,9 +11,24 @@
 struct int2 { int x, y; };
 #endif
 
-std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filename, vec3 min_pos, vec3 max_pos)
+size_t num_pris(std::string const & filename)
 {
-	std::vector<std::pair<particle, int2>> particle_vec;
+	// Determine number of electrons.
+	// We don't use C++17 std::filesystem because we want to be C++11 compatible.
+	// Officially, tellg() is not guaranteed to give us the file size, but that
+	// is OK because in practice it always does that and it's only indicative.
+	std::ifstream ifs(filename, std::ifstream::binary | std::ifstream::ate);
+	if (!ifs.is_open())
+		return 0;
+
+	size_t size = ifs.tellg();
+	return size / (7*sizeof(float) + 2*sizeof(int));
+}
+
+std::pair<std::vector<particle>, std::vector<int2>> load_pri_file(std::string const & filename, vec3 min_pos, vec3 max_pos)
+{
+	std::vector<particle> particle_vec;
+	std::vector<int2> pixel_vec;
 
 	// Keep track of the number of times a primary electron is wrong,
 	// and keep an example.
@@ -22,9 +37,14 @@ std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filenam
 	std::pair<size_t, float> high_energy;
 	std::pair<size_t, vec3> direction;
 
+	// Reserve expected amount of memory required.
+	const size_t estimated_number = num_pris(filename);
+	particle_vec.reserve(estimated_number);
+	pixel_vec.reserve(estimated_number);
+
 	std::ifstream ifs(filename, std::ifstream::binary);
 	if (!ifs.is_open())
-		return particle_vec;
+		return { particle_vec, pixel_vec };
 
 	while(!ifs.eof())
 	{
@@ -76,7 +96,8 @@ std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filenam
 			++direction.first;
 		}
 
-		particle_vec.push_back({ primary, pixel });
+		particle_vec.push_back(primary);
+		pixel_vec.push_back(pixel);
 	}
 	ifs.close();
 
@@ -103,7 +124,7 @@ std::vector<std::pair<particle, int2>> load_pri_file(std::string const & filenam
 			<< direction.second.z << ")." << std::endl;
 
 
-	return particle_vec;
+	return { particle_vec, pixel_vec };
 }
 
 uint64_t morton(uint16_t x, uint16_t y, uint16_t z)
@@ -118,77 +139,102 @@ uint64_t morton(uint16_t x, uint16_t y, uint16_t z)
 	return morton;
 }
 
+
+// Helper functions for sorting two vectors simultaneously.
+// It does this by finding a sort permutation, which is by no means elegant.
+// Given that we don't usually want to sort, we don't care.
+template <typename T, typename Compare>
+std::vector<std::size_t> sort_permutation(
+    std::vector<T> const & vec,
+    Compare const & compare)
+{
+	std::vector<std::size_t> p(vec.size());
+	std::iota(p.begin(), p.end(), 0);
+	std::sort(p.begin(), p.end(),
+		[&](std::size_t i, std::size_t j){ return compare(vec[i], vec[j]); });
+	return p;
+}
+template <typename T>
+std::vector<T> apply_permutation(
+    std::vector<T> const & vec,
+    std::vector<size_t> const & p)
+{
+	std::vector<T> sorted_vec(vec.size());
+	std::transform(p.begin(), p.end(), sorted_vec.begin(),
+		[&](std::size_t i){ return vec[i]; });
+	return sorted_vec;
+}
+
+/*
+ * Shuffle the primary particles such that the first `prescan_size` are uniformly
+ * sampled. The others are left mostly untouched.
+ */
+void prescan_shuffle(
+	std::vector<particle>& particle_vec,
+	std::vector<int2>& pixel_vec,
+	size_t prescan_size)
+{
+	std::default_random_engine rng;
+	for (size_t i1 = 0; i1 < std::min(prescan_size, particle_vec.size()); ++i1)
+	{
+		std::uniform_int_distribution<size_t> dist(i1, particle_vec.size()-1);
+		const auto i2 = dist(rng);
+		std::swap(particle_vec[i1], particle_vec[i2]);
+		std::swap(pixel_vec[i1], pixel_vec[i2]);
+	}
+}
+
 /*
  * The first prescan_size particles are random, uniformly shuffled from the exposure
  * for a well-sampled prescan.
  * The other ones are sorted by Morton index, to make sure that nearby particles in
  * the exposure are also spatially close. This gives a significant speedup in the
- * GPU collision detection routine.
+ * GPU collision detection routine, but in practice, the gains are usually less
+ * than the cost of sorting, especially if the input is already partially sorted.
  */
-std::vector<std::pair<particle, int2>> sort_pri_file(std::vector<std::pair<particle, int2>> data, size_t prescan_size)
+void sort_pri_file(
+	std::vector<particle>& particle_vec,
+	std::vector<int2>& pixel_vec)
 {
-	if (prescan_size > 0)
-		std::shuffle(data.begin(), data.end(), std::default_random_engine());
-
-	if (prescan_size < data.size())
+	// Find min, max coordinates of all primaries
+	vec3 vmin = particle_vec[0].pos;
+	vec3 vmax = vmin;
+	for (const auto& p : particle_vec)
 	{
-		// Find min, max coordinates of all primaries
-		vec3 vmin = data[0].first.pos;
-		vec3 vmax = vmin;
-		for (const auto& p : data)
-		{
-			vmin = {
-				std::min(vmin.x, p.first.pos.x),
-				std::min(vmin.y, p.first.pos.y),
-				std::min(vmin.z, p.first.pos.z),
-			};
-			vmax = {
-				std::max(vmax.x, p.first.pos.x),
-				std::max(vmax.y, p.first.pos.y),
-				std::max(vmax.z, p.first.pos.z),
-			};
-		}
-
-		// Sort by Morton ordering
-		const vec3 vsize = vmax - vmin;
-		std::sort(data.begin() + prescan_size, data.end(),
-			[vmin, vsize](std::pair<particle, int2> p1, std::pair<particle, int2> p2) -> bool
-		{
-			const vec3 p1n = (p1.first.pos - vmin);
-			const vec3 p2n = (p2.first.pos - vmin);
-
-			const auto m1 = morton(
-				static_cast<uint16_t>(p1n.x / vsize.x * std::numeric_limits<uint16_t>::max()),
-				static_cast<uint16_t>(p1n.y / vsize.y * std::numeric_limits<uint16_t>::max()),
-				static_cast<uint16_t>(p1n.z / vsize.z * std::numeric_limits<uint16_t>::max()));
-			const auto m2 = morton(
-				static_cast<uint16_t>(p2n.x / vsize.x * std::numeric_limits<uint16_t>::max()),
-				static_cast<uint16_t>(p2n.y / vsize.y * std::numeric_limits<uint16_t>::max()),
-				static_cast<uint16_t>(p2n.z / vsize.z * std::numeric_limits<uint16_t>::max()));
-
-			return m1 < m2;
-		});
+		vmin = {
+			std::min(vmin.x, p.pos.x),
+			std::min(vmin.y, p.pos.y),
+			std::min(vmin.z, p.pos.z),
+		};
+		vmax = {
+			std::max(vmax.x, p.pos.x),
+			std::max(vmax.y, p.pos.y),
+			std::max(vmax.z, p.pos.z),
+		};
 	}
 
-	return data;
-}
-
-/*
- * Return a pair of vectors (not a vector of pairs), allowing the output
- * of these functions to be fed directly into the simulator.
- */
-std::pair<std::vector<particle>, std::vector<int2>> separate_pairs(std::vector<std::pair<particle, int2>> const & data)
-{
-	std::vector<particle> particle_vec; particle_vec.reserve(data.size());
-	std::vector<int2> pixel_vec; pixel_vec.reserve(data.size());
-
-	for (auto element : data)
+	// Sort by Morton ordering
+	const vec3 vsize = vmax - vmin;
+	auto permutation = sort_permutation(particle_vec,
+		[vmin, vsize](particle const & p1, particle const & p2) -> bool
 	{
-		particle_vec.push_back(element.first);
-		pixel_vec.push_back(element.second);
-	}
+		const vec3 p1n = (p1.pos - vmin);
+		const vec3 p2n = (p2.pos - vmin);
 
-	return { particle_vec, pixel_vec };
+		const auto m1 = morton(
+			static_cast<uint16_t>(p1n.x / vsize.x * std::numeric_limits<uint16_t>::max()),
+			static_cast<uint16_t>(p1n.y / vsize.y * std::numeric_limits<uint16_t>::max()),
+			static_cast<uint16_t>(p1n.z / vsize.z * std::numeric_limits<uint16_t>::max()));
+		const auto m2 = morton(
+			static_cast<uint16_t>(p2n.x / vsize.x * std::numeric_limits<uint16_t>::max()),
+			static_cast<uint16_t>(p2n.y / vsize.y * std::numeric_limits<uint16_t>::max()),
+			static_cast<uint16_t>(p2n.z / vsize.z * std::numeric_limits<uint16_t>::max()));
+
+		return m1 < m2;
+	});
+
+	particle_vec = apply_permutation(particle_vec, permutation);
+	pixel_vec = apply_permutation(pixel_vec, permutation);
 }
 
 #endif // __LOAD_PRI_FILE_H_
