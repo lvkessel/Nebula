@@ -35,7 +35,7 @@ endif()
 find_package(Threads REQUIRED)
 
 
-string(APPEND CMAKE_CXX_FLAGS " -O3")
+string(APPEND CMAKE_CXX_FLAGS " -O3 -DNDEBUG")
 string(APPEND CMAKE_CUDA_FLAGS " --expt-relaxed-constexpr")
 string(APPEND CMAKE_CUDA_FLAGS " -O3 -prec-sqrt=false")
 string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_30,code=compute_30")

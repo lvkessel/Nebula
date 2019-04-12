@@ -1,15 +1,10 @@
-#include "../legacy_thomas/octree.hh"
-#include <stack>
+#include "octree/octree_builder.h"
 
 namespace nbl { namespace geometry {
 
 template<bool gpu_flag>
 CPU octree<gpu_flag> octree<gpu_flag>::create(std::vector<triangle> const & triangles)
 {
-	// Conversion between legacy_thomas::point3 and vec3.
-	auto p3 = [](vec3 const & v) -> legacy_thomas::point3 { return legacy_thomas::point3(v.x, v.y, v.z); };
-	auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return {(real)p.x, (real)p.y, (real)p.z}; };
-
 	// TODO: error message
 	if (triangles.empty())
 		throw std::runtime_error("No triangles provided!");
@@ -40,86 +35,13 @@ CPU octree<gpu_flag> octree<gpu_flag>::create(std::vector<triangle> const & tria
 	AABB_min -= vec3{ 1, 1, 1 };
 	AABB_max += vec3{ 1, 1, 1 };
 
-	// Create legacy_thomas::octree structure
-	legacy_thomas::octree root(p3(AABB_min), p3(AABB_max));
-    for(auto cit = triangles.cbegin(); cit != triangles.cend(); cit++)
-	{
-		legacy_thomas::triangle legacy_tri(p3(cit->r0()), p3(cit->r1()), p3(cit->r2()), cit->material_in, cit->material_out);
-        root.insert(legacy_tri);
-	}
-
-
-	/*
-	 * Following is mostly copied from legacy -> cuda_geometry_struct::create()
-	 */
-	// sort octree nodes by location code (morton order)
-    std::map<uint64_t,const legacy_thomas::octree*> morton_map;
-    std::stack<const legacy_thomas::octree*> node_p_stack;
-    node_p_stack.push(&root);
-    while(!node_p_stack.empty()) {
-        const legacy_thomas::octree* node_p = node_p_stack.top();
-        node_p_stack.pop();
-        morton_map[node_p->location()] = node_p;
-        for(int octant = 0; octant < 8; octant++) {
-            const legacy_thomas::octree* child_p = node_p->traverse(octant);
-            if(child_p != nullptr)
-                node_p_stack.push(child_p);
-        }
-    }
-
-    // map triangles from octree to indices following location code
-    std::vector<const legacy_thomas::triangle*> triangle_p_vec;
-    std::map<const legacy_thomas::triangle*,int> triangle_p_map;
-    for(auto morton_cit = morton_map.cbegin(); morton_cit != morton_map.cend(); morton_cit++) {
-        const legacy_thomas::octree* node_p = morton_cit->second;
-        if(node_p->is_leaf())
-            for(const legacy_thomas::triangle* triangle_p : node_p->triangles())
-                if(triangle_p_map.count(triangle_p) == 0) {
-                    const int index = triangle_p_vec.size();
-                    triangle_p_map[triangle_p] = index;
-                    triangle_p_vec.push_back(triangle_p);
-                }
-    }
-
-    // build linearized octree index table
-    //  index=0 : child does not exist
-    //  index>0 : non-leaf child with node indices
-    //  index<0 : leaf child with triangle indices (index -1 means no triangle)
-    std::vector<int> octree_vec;
-    std::map<const legacy_thomas::octree*,int> node_p_map;
-    for(auto morton_cit = morton_map.cbegin(); morton_cit != morton_map.cend(); morton_cit++) {
-        const legacy_thomas::octree* node_p = morton_cit->second;
-        const int index = octree_vec.size();
-        node_p_map[node_p] = index;
-        if(node_p->is_leaf()) {
-            for(const legacy_thomas::triangle* triangle_p : node_p->triangles())
-                octree_vec.push_back(triangle_p_map[triangle_p]);
-            octree_vec.push_back(-1);
-        } else {
-            for(int octant = 0; octant < 8; octant++)
-                octree_vec.push_back(0);
-        }
-    }
-    for(auto cit = node_p_map.cbegin(); cit != node_p_map.cend(); cit++) {
-        const legacy_thomas::octree* node_p = cit->first;
-        const int index = cit->second;
-        if(!node_p->is_leaf())
-            for(int octant = 0; octant < 8; octant++) {
-                const legacy_thomas::octree* child_p = node_p->traverse(octant);
-                if(child_p != nullptr) {
-                    octree_vec[index+octant] = node_p_map[child_p];
-                    if(child_p->is_leaf())
-                        octree_vec[index+octant] *= -1;
-                }
-            }
-    }
-	/*
-	 * END copy from legacy
-	 */
+	// Create octree structure
+	nbl::geometry::octree_builder::octree_root root(AABB_min, AABB_max);
+	for (auto triangle : triangles)
+		root.insert(triangle);
 
 	// TODO: ensure that triangles.size() fits in octree._N
-	return detail::octree_factory<gpu_flag>::create(
-		triangles.size(), octree_vec, triangle_p_vec, AABB_min, AABB_max);
+	return detail::octree_factory<gpu_flag>::create(root, AABB_min, AABB_max);
 }
 
 template<bool gpu_flag>
@@ -361,25 +283,28 @@ namespace detail
 	template<>
 	struct octree_factory<false>
 	{
-		inline static CPU octree<false> create(octree<false>::triangle_index_t N, std::vector<int> octree_vec,
-			std::vector<const legacy_thomas::triangle*> triangle_p_vec, vec3 AABB_min, vec3 AABB_max)
+		inline static CPU octree<false> create(
+			nbl::geometry::octree_builder::octree_root const & root,
+			vec3 AABB_min, vec3 AABB_max)
 		{
-			auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return { (real)p.x, (real)p.y, (real)p.z }; };
-
 			octree<false> geometry;
 
-			geometry._N = N;
+			// Linearize octree
+			const std::pair<std::vector<int>, std::vector<size_t>> octree_data = root.linearize();
 
-			geometry._octree_data = new int[octree_vec.size()];
-			memcpy(geometry._octree_data, octree_vec.data(), octree_vec.size() * sizeof(int));
+			// Copy number of triangles
+			geometry._N = octree_data.second.size();
 
+			// Copy octree data
+			geometry._octree_data = new int[octree_data.first.size()];
+			memcpy(geometry._octree_data, octree_data.first.data(), octree_data.first.size() * sizeof(int));
+
+			// Copy triangle data
 			geometry._triangles = reinterpret_cast<triangle*>(malloc(geometry._N * sizeof(triangle)));
-			for (octree<false>::triangle_index_t i = 0; i < triangle_p_vec.size(); ++i)
-			{
-				legacy_thomas::triangle const * legacy_tri = triangle_p_vec[i];
-				geometry._triangles[i] = triangle(v3(legacy_tri->A), v3(legacy_tri->B), v3(legacy_tri->C), legacy_tri->in, legacy_tri->out);
-			}
+			for (octree<false>::triangle_index_t i = 0; i < geometry._N; ++i)
+				geometry._triangles[i] = root.triangles()[octree_data.second[i]];
 
+			// Copy AABB
 			geometry.set_AABB(AABB_min, AABB_max);
 
 			return geometry;
@@ -400,31 +325,33 @@ namespace detail
 	template<>
 	struct octree_factory<true>
 	{
-		inline static CPU octree<true> create(octree<true>::triangle_index_t N, std::vector<int> octree_vec,
-			std::vector<const legacy_thomas::triangle*> triangle_p_vec, vec3 AABB_min, vec3 AABB_max)
+		inline static CPU octree<true> create(
+			nbl::geometry::octree_builder::octree_root const & root,
+			vec3 AABB_min, vec3 AABB_max)
 		{
-			auto v3 = [](legacy_thomas::point3 const & p) -> vec3 { return { (real)p.x, (real)p.y, (real)p.z }; };
-
 			octree<true> geometry;
 
-			geometry._N = N;
+			// Linearize octree
+			const std::pair<std::vector<int>, std::vector<size_t>> octree_data = root.linearize();
 
-			// Copy octree to device
-			cuda::cuda_new<int>(&geometry._octree_data, octree_vec.size());
-			cudaMemcpy(geometry._octree_data, octree_vec.data(), octree_vec.size() * sizeof(int), cudaMemcpyHostToDevice);
+			// Copy number of triangles
+			geometry._N = octree_data.second.size();
 
-			// Copy triangle data to device
+			// Copy octree data
+			cuda::cuda_new<int>(&geometry._octree_data, octree_data.first.size());
+			cudaMemcpy(geometry._octree_data, octree_data.first.data(),
+				octree_data.first.size()*sizeof(int), cudaMemcpyHostToDevice);
+
+			// Copy triangle data
 			cuda::cuda_new<triangle>(&geometry._triangles, geometry._N);
 			cuda::cuda_mem_scope<triangle>(geometry._triangles, geometry._N,
-				[&triangle_p_vec, &v3](triangle* device)
+				[&root, &octree_data, &geometry](triangle* device)
 			{
-				for (octree<true>::triangle_index_t i = 0; i < triangle_p_vec.size(); ++i)
-				{
-					legacy_thomas::triangle const * legacy_tri = triangle_p_vec[i];
-					device[i] = triangle(v3(legacy_tri->A), v3(legacy_tri->B), v3(legacy_tri->C), legacy_tri->in, legacy_tri->out);
-				}
+				for (octree<true>::triangle_index_t i = 0; i < geometry._N; ++i)
+					device[i] = root.triangles()[octree_data.second[i]];
 			});
 
+			// Copy AABB
 			geometry.set_AABB(AABB_min, AABB_max);
 
 			return geometry;

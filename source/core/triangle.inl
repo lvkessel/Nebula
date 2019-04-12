@@ -72,3 +72,32 @@ PHYSICS vec3 triangle::get_normal() const
 {
 	return cross_product(_e1, _e2);
 }
+
+PHYSICS bool triangle::operator==(triangle const & rhs) const
+{
+	return (_r0 == rhs._r0
+		&& _e1 == rhs._e1
+		&& _e2 == rhs._e2
+		&& material_in == rhs.material_in
+		&& material_out == rhs.material_out);
+}
+
+PHYSICS bool triangle::perfect_overlap(triangle const & other) const
+{
+	const auto ar0 = r0();
+	const auto ar1 = r1();
+	const auto ar2 = r2();
+
+	const auto br0 = other.r0();
+	const auto br1 = other.r1();
+	const auto br2 = other.r2();
+
+	return (
+		(ar0 == br0 && ar1 == br1 && ar2 == br2) ||
+		(ar0 == br1 && ar1 == br2 && ar2 == br0) ||
+		(ar0 == br2 && ar1 == br0 && ar2 == br1) ||
+
+		(ar0 == br0 && ar1 == br2 && ar2 == br1) ||
+		(ar0 == br1 && ar1 == br0 && ar2 == br2) ||
+		(ar0 == br2 && ar1 == br1 && ar2 == br0) );
+}
