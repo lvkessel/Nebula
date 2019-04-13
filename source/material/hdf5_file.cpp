@@ -1,6 +1,5 @@
-#include <H5Cpp.h>
-#include <hdf5_hl.h>
 #include "hdf5_file.h"
+#include <hdf5_hl.h>
 
 namespace nbl {
 
@@ -11,41 +10,41 @@ namespace
 	 * Verifies that the table has the expected number of dimensions.
 	 */
 	template<size_t N>
-	inline std::array<hsize_t, N> get_size(H5::DataSpace const & dataspace)
+	inline std::array<hsize_t, N> get_size(hid_t dataspace)
 	{
-		if (dataspace.getSimpleExtentNdims() != N)
+		if (H5Sget_simple_extent_ndims(dataspace) != N)
 			throw std::runtime_error("Dataspace has unexpected dimension");
 
 		std::array<hsize_t, N> dim;
-		dataspace.getSimpleExtentDims(dim.data());
+		H5Sget_simple_extent_dims(dataspace, dim.data(), nullptr);
 		return dim;
 	}
 
 
 	/*
-	 * Get native std::string data type for the HDF5 library
+	 * Get native string data type for use with the HDF5 library
 	 */
-	inline H5::StrType string_type()
+	inline hid_t string_type()
 	{
-		return H5::StrType(H5::PredType::C_S1, H5T_VARIABLE);
-	}
-
-	/*
-	 * Free temporary (string) data allocated by the HDF5 library.
-	 */
-	inline void HDFree(void* pointer)
-	{
-		free(pointer);
+		hid_t tid = H5Tcopy(H5T_C_S1);
+		H5Tset_size(tid, H5T_VARIABLE);
+		return tid;
 	}
 
 
 	/*
 	 * Read an attribute, expecting a string
 	 */
-	inline std::string read_attribute_string(H5::Attribute const & attribute)
+	inline std::string read_attribute_string(hid_t attribute)
 	{
-		std::string result;
-		attribute.read(string_type(), result);
+		char* buffer;
+		hid_t string_t = string_type();
+
+		H5Aread(attribute, string_t, &buffer);
+		std::string result(buffer);
+
+		H5Tclose(string_t);
+		H5free_memory(buffer);
 		return result;
 	}
 
@@ -53,7 +52,7 @@ namespace
 	 * Read an attribute, expecting a quantity (value + unit)
 	 */
 	inline units::quantity<double> read_attribute_quantity(
-		H5::Attribute const & attribute, units::unit_parser<double> const & parser)
+		hid_t attribute, units::unit_parser<double> const & parser)
 	{
 		struct data_struct
 		{
@@ -61,21 +60,24 @@ namespace
 			char* unit;
 		};
 
+		// Create datatype
+		hid_t string_t = string_type();
+		hid_t data_type = H5Tcreate(H5T_COMPOUND, sizeof(data_struct));
+		H5Tinsert(data_type, "value", HOFFSET(data_struct, value), H5T_NATIVE_DOUBLE);
+		H5Tinsert(data_type, "unit", HOFFSET(data_struct, unit), string_t);
+
 		// Read from file
-		H5::CompType data_type(sizeof(data_struct));
-		data_type.insertMember("value", HOFFSET(data_struct, value),
-			H5::PredType::NATIVE_DOUBLE);
-		data_type.insertMember("unit", HOFFSET(data_struct, unit),
-			string_type());
 		data_struct h5_result;
-		attribute.read(data_type, &h5_result);
+		H5Aread(attribute, data_type, &h5_result);
 
 		// Copy to result struct
 		const units::quantity<double> result = h5_result.value *
 			parser.parse_unit(h5_result.unit);
 
 		// Clean up and return
-		HDFree(h5_result.unit);
+		H5free_memory(h5_result.unit);
+		H5Tclose(data_type);
+		H5Tclose(string_t);
 		return result;
 	}
 
@@ -86,13 +88,15 @@ namespace
 	 * Returns this as an nd_array<double, N>.
 	 */
 	template<size_t N>
-	inline nd_array::nd_array<double, N> read_dataset(H5::DataSet dataset)
+	inline nd_array::nd_array<double, N> read_dataset(hid_t dataset)
 	{
-		H5::DataSpace dataspace = dataset.getSpace();
+		hid_t dataspace = H5Dget_space(dataset);
 		std::array<hsize_t, N> dimensions = get_size<N>(dataspace);
+		H5Sclose(dataspace);
 
 		auto table = make_from_tuple<nd_array::nd_array<double,N>>(dimensions);
-		dataset.read(table.data(), H5::PredType::NATIVE_DOUBLE);
+		H5Dread(dataset, H5T_NATIVE_DOUBLE,
+			H5S_ALL, H5S_ALL, H5P_DEFAULT, table.data());
 
 		return table;
 	}
@@ -106,7 +110,7 @@ namespace
 	 */
 	template<size_t N>
 	inline std::array<nd_array::ax_list<double>, N> get_scales(
-		H5::DataSet const & dataset,
+		hid_t dataset,
 		std::array<hsize_t, N> const & dimensions,
 		units::unit_parser<double> const & parser)
 	{
@@ -116,32 +120,48 @@ namespace
 		{
 			// Find out which dimension scale, if any, is attached.
 			// If there are multiple, just get the first one.
-			std::pair<bool, H5::DataSet> scale_data(false, {});
-			H5DSiterate_scales(dataset.getId(), (unsigned int)dim, nullptr,
-				[](hid_t /*did*/, unsigned /*dim*/, hid_t dsid, void* data) -> herr_t
-				{
-					(*reinterpret_cast<std::pair<bool, H5::DataSet>*>(data)) =
-						{ true, H5::DataSet(dsid) };
-					return 0;
-				}, &scale_data);
 
-			if (scale_data.first == true)
+			// Assemble data to be sent to the iteration function
+			std::pair<
+				nd_array::ax_list<double>*,
+				units::unit_parser<double> const *>
+			itdata { &scales[dim], &parser };
+
+			// Iterate through the data scales attached, if any, and retrieve data
+			H5DSiterate_scales(dataset, (unsigned int)dim, nullptr,
+				[&](hid_t /*did*/, unsigned /*dim*/, hid_t dsid, void* data) -> herr_t
+				{
+					// Recover itdata
+					auto itdata = *reinterpret_cast<std::pair<
+						nd_array::ax_list<double>*,
+						units::unit_parser<double> const *>*>(data);
+
+					// Read unit associated to dimension scale
+					hid_t at_units = H5Aopen(dsid, "units", H5P_DEFAULT);
+					auto unit = itdata.second->parse_unit(
+						read_attribute_string(at_units));
+					H5Aclose(at_units);
+
+					// Read the dataset
+					*(itdata.first) = { read_dataset<1>(dsid), unit };
+
+					// Return 1 to stop the iteration
+					return 1;
+				}, &itdata);
+
+
+			// If no dimension scale was attached: fill with 0 to 1 (inclusive)
+			if (scales[dim].size() == 0)
 			{
-				// Read the dimension scale
-				auto unit = parser.parse_unit(read_attribute_string(
-					scale_data.second.openAttribute("units")));
-				scales[dim] = { read_dataset<1>(scale_data.second), unit };
-				if (scales[dim].size() != dimensions[dim])
-					throw std::runtime_error("Dimension scale has unexpected size.");
-			}
-			else
-			{
-				// No dimension scale attached, fill with 0 to 1 (inclusive)
 				std::vector<double> data(dimensions[dim]);
 				for (size_t i = 0; i < data.size(); ++i)
 					data[i] = double(i) / (data.size()-1);
 				scales[dim] = { data };
 			}
+
+
+			if (scales[dim].size() != dimensions[dim])
+				throw std::runtime_error("Dimension scale has unexpected size.");
 		}
 
 		return scales;
@@ -154,89 +174,86 @@ namespace
 	 * a linear scale between zero and one.
 	 */
 	template<size_t N>
-	inline hdf5_file::hdf5_table<N> read_axis_dataset(H5::DataSet dataset,
+	inline hdf5_file::hdf5_table<N> read_axis_dataset(hid_t dataset,
 		units::unit_parser<double> const & parser)
 	{
 		// Get the dimensions and scales
-		const H5::DataSpace dataspace = dataset.getSpace();
+		hid_t dataspace = H5Dget_space(dataset);
 		const std::array<hsize_t, N> dimensions = get_size<N>(dataspace);
+		H5Sclose(dataspace);
 		const auto scales = get_scales<N>(dataset, dimensions, parser);
 
 		// Read the actual data + units
 		auto table = make_from_tuple<hdf5_file::hdf5_table<N>>(scales);
-		dataset.read(table.data(), H5::PredType::NATIVE_DOUBLE);
-		table.unit = parser.parse_unit(read_attribute_string(
-			dataset.openAttribute("units")));
+		H5Dread(dataset, H5T_NATIVE_DOUBLE,
+			H5S_ALL, H5S_ALL, H5P_DEFAULT, table.data());
+
+		hid_t at_units = H5Aopen(dataset, "units", H5P_DEFAULT);
+		table.unit = parser.parse_unit(read_attribute_string(at_units));
+		H5Aclose(at_units);
+
 		return table;
 	}
 } // anonymous namespace
 
-// The weird (H5::Exception::dontPrint(), filename) construction exists because
-// we want to call H5::Exception::dontPrint() before initializing _file. The
-// comma operator performs dontPrint and evaluates to filename.
 hdf5_file::hdf5_file(std::string const & filename)
-	try : _file((H5::Exception::dontPrint(), filename), H5F_ACC_RDONLY)
-{}
-catch(H5::Exception const &)
 {
-	throw std::runtime_error("Could not open HDF5 file " + filename);
+	_file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+	if (_file < 0)
+		throw std::runtime_error("Unable to open file " + filename);
+}
+hdf5_file::~hdf5_file()
+{
+	 H5Fclose(_file);
 }
 
 std::string hdf5_file::get_property_string(std::string const & name) const
 {
-	try
-	{
-		return read_attribute_string(_file.openAttribute(name));
-	}
-	catch (H5::Exception const &)
-	{
+	hid_t attribute = H5Aopen(_file, name.c_str(), H5P_DEFAULT);
+	if (attribute < 0)
 		throw std::runtime_error("Could not read string property '" + name + '\'');
-	}
+
+	auto result = read_attribute_string(attribute);
+	H5Aclose(attribute);
+	return result;
 }
 units::quantity<double> hdf5_file::get_property_quantity(
 	std::string const & name,
 	units::unit_parser<double> const & parser) const
 {
-	try
-	{
-		return read_attribute_quantity(
-			_file.openAttribute(name),
-			parser);
-	}
-	catch (H5::Exception const &)
-	{
+	hid_t attribute = H5Aopen(_file, name.c_str(), H5P_DEFAULT);
+	if (attribute < 0)
 		throw std::runtime_error("Could not read quantity property '" + name + '\'');
-	}
+
+	auto result = read_attribute_quantity(attribute, parser);
+	H5Aclose(attribute);
+	return result;
 }
 
 std::string hdf5_file::get_property_string(
 	std::string const & name,
 	std::string const & _default) const
 {
-	try
-	{
-		return read_attribute_string(_file.openAttribute(name));
-	}
-	catch (H5::Exception const &)
-	{
+	hid_t attribute = H5Aopen(_file, name.c_str(), H5P_DEFAULT);
+	if (attribute < 0)
 		return _default;
-	}
+
+	auto result = read_attribute_string(attribute);
+	H5Aclose(attribute);
+	return result;
 }
 units::quantity<double> hdf5_file::get_property_quantity(
 	std::string const & name,
 	units::quantity<double> const & _default,
 	units::unit_parser<double> const & parser) const
 {
-	try
-	{
-		return read_attribute_quantity(
-			_file.openAttribute(name),
-			parser);
-	}
-	catch (H5::Exception const &)
-	{
+	hid_t attribute = H5Aopen(_file, name.c_str(), H5P_DEFAULT);
+	if (attribute < 0)
 		return _default;
-	}
+
+	auto result = read_attribute_quantity(attribute, parser);
+	H5Aclose(attribute);
+	return result;
 }
 
 template<size_t N>
@@ -244,14 +261,13 @@ hdf5_file::hdf5_table<N> hdf5_file::get_table_axes(
 	std::string const & name,
 	units::unit_parser<double> const & parser) const
 {
-	try
-	{
-		return read_axis_dataset<N>(_file.openDataSet(name), parser);
-	}
-	catch (H5::Exception const &)
-	{
+	hid_t dataset = H5Dopen(_file, name.c_str(), H5P_DEFAULT);
+	if (dataset < 0)
 		throw std::runtime_error("Could not read table '" + name + '\'');
-	}
+
+	auto result = read_axis_dataset<N>(dataset, parser);
+	H5Dclose(dataset);
+	return result;
 }
 
 

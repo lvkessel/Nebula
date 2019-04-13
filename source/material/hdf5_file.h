@@ -2,7 +2,7 @@
 #define __HDF5_FILE_H_
 
 #include <string>
-#include <H5Cpp.h>
+#include <hdf5.h>
 #include "../common/units/unit_system.h"
 #include "../common/nd_array/nd_array.h"
 #include "../common/nd_array/nd_array_ax.h"
@@ -40,6 +40,11 @@ public:
 	 * \brief Constructor: open a file for reading
 	 */
 	hdf5_file(std::string const & filename);
+
+	/**
+	 * \brief Destructor.
+	 */
+	~hdf5_file();
 
 	/**
 	 * \brief Get a string property. Throws `std::runtime_error` exception if
@@ -95,7 +100,7 @@ public:
 		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
 
 private:
-	H5::H5File _file;
+	hid_t _file;
 };
 
 } // namespace nbl

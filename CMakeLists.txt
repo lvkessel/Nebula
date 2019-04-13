@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(nebula CXX)
+project(nebula C CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -19,10 +19,10 @@ endif()
 
 
 # Find HDF5 library
-find_package(HDF5 1.8.12 REQUIRED CXX HL)
+find_package(HDF5 1.8.13 REQUIRED C HL)
 include_directories(${HDF5_INCLUDE_DIRS})
 add_definitions(${HDF5_DEFINITIONS})
-list(APPEND LIBRARIES ${HDF5_CXX_LIBRARIES} ${HDF5_HL_LIBRARIES})
+list(APPEND LIBRARIES ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES})
 
 # Find MPI library if compiling against parallel HDF5
 if(HDF5_IS_PARALLEL)
