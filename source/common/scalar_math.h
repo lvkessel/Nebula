@@ -14,10 +14,6 @@
 
 #include <cmath>
 #include <algorithm>
-#if CUDA_COMPILER_AVAILABLE
-	#include <math_functions.h>
-	#include <math_constants.h>
-#endif // CUDA_COMPILER_AVAILABLE
 
 /// Clamp an integer
 inline PHYSICS int clampi(int i, int low, int high)

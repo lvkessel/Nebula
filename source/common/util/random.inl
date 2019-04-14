@@ -30,7 +30,7 @@ namespace detail
 	};
 
 #if CUDA_COMPILER_AVAILABLE
-	#include "curand_kernel.h"
+	#include <curand_kernel.h>
 
 	template<>
 	class random_state<true>
