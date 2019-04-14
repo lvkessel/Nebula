@@ -129,7 +129,7 @@ namespace
 
 			// Iterate through the data scales attached, if any, and retrieve data
 			H5DSiterate_scales(dataset, (unsigned int)dim, nullptr,
-				[&](hid_t /*did*/, unsigned /*dim*/, hid_t dsid, void* data) -> herr_t
+				[](hid_t /*did*/, unsigned /*dim*/, hid_t dsid, void* data) -> herr_t
 				{
 					// Recover itdata
 					auto itdata = *reinterpret_cast<std::pair<
