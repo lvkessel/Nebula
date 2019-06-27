@@ -2,16 +2,15 @@
 #include "physics_config.h"
 #include "core/material.h"
 #include "common/cli_params.h"
+#include "common/time_log.h"
 
 #include "drivers/gpu/gpu_driver.h"
-#include "drivers/cpu/cpu_driver.h"
 
 #include "geometry/trilist.h"
 #include "geometry/octree.h"
 
 #include <iostream>
 #include <iomanip>
-#include <chrono>
 #include <algorithm>
 #include <numeric>
 #include "legacy_thomas/load_tri_file.h"
@@ -43,35 +42,6 @@ material_t load_material(std::string const & filename)
 	}
 }
 
-struct timelog
-{
-	void add(std::string const & name,
-		std::chrono::steady_clock::time_point t1,
-		std::chrono::steady_clock::time_point t2)
-	{
-		data.push_back({name, t2-t1});
-	}
-
-	void print(std::ostream& out)
-	{
-		const size_t len_col1 = std::max_element(data.begin(), data.end(),
-			[](data_t const & d1, data_t const & d2) -> bool
-			{ return d1.first.size() < d2.first.size(); })->first.size();
-
-		out << "Timing (seconds):\n";
-		for (auto&& d : data)
-		{
-			const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(d.second);
-			out << std::setw(len_col1) << d.first << ": "
-				<< std::fixed << std::setprecision(3) << (ms.count()/1000.)
-				<< '\n';
-		}
-	}
-
-	using data_t = std::pair<std::string, std::chrono::steady_clock::duration>;
-	std::vector<data_t> data;
-};
-
 int main(int argc, char** argv)
 {
 	// Settings
@@ -98,9 +68,7 @@ int main(int argc, char** argv)
 		"\t--sort-primaries [0]\n");
 
 	// Setup time logging
-	timelog timer;
-	std::chrono::steady_clock::time_point t1;
-	std::chrono::steady_clock::time_point t2;
+	time_log timer;
 
 	// Interpret command-line options
 	std::vector<std::string> pos_flags = p.get_positional();
@@ -112,10 +80,9 @@ int main(int argc, char** argv)
 
 	// Load geometry
 	std::clog << "Loading geometry..." << std::endl;
-	t1 = std::chrono::steady_clock::now();
+	timer.start();
 	std::vector<triangle> triangles = load_tri_file(pos_flags[0]);
-	t2 = std::chrono::steady_clock::now();
-	timer.add("Loading triangles", t1, t2);
+	timer.stop("Loading triangles");
 
 	if (triangles.empty())
 	{
@@ -123,22 +90,20 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	t1 = std::chrono::steady_clock::now();
+	timer.start();
 	geometry_t geometry = geometry_t::create(triangles);
-	t2 = std::chrono::steady_clock::now();
-	timer.add("Building acceleration structure", t1, t2);
+	timer.stop("Building acceleration structure");
 
 
 	// Load primaries
 	std::clog << "Loading primary electrons..." << std::endl;
-	t1 = std::chrono::steady_clock::now();
+	timer.start();
 	std::vector<particle> primaries; std::vector<int2> pixels;
 	std::tie(primaries, pixels) = load_pri_file(pos_flags[1], geometry.AABB_min(), geometry.AABB_max());
 	if (sort_primaries)
 		sort_pri_file(primaries, pixels);
 	prescan_shuffle(primaries, pixels, prescan_size);
-	t2 = std::chrono::steady_clock::now();
-	timer.add("Loading primary electrons", t1, t2);
+	timer.stop("Loading primary electrons");
 
 	if (primaries.empty())
 	{
@@ -159,12 +124,11 @@ int main(int argc, char** argv)
 
 	// Load materials
 	std::clog << "Loading materials..." << std::endl;
-	t1 = std::chrono::steady_clock::now();
+	timer.start();
 	std::vector<material_t> materials;
 	for (size_t parameter_idx = 2; parameter_idx < pos_flags.size(); ++parameter_idx)
 		materials.push_back(load_material(pos_flags[parameter_idx]));
-	t2 = std::chrono::steady_clock::now();
-	timer.add("Loading materials", t1, t2);
+	timer.stop("Loading materials");
 
 
 	intersect_t inter;
@@ -181,7 +145,7 @@ int main(int argc, char** argv)
 	driver d(capacity, geometry, inter, materials, seed);
 
 	// First, do the prescan
-	t1 = std::chrono::steady_clock::now();
+	timer.start();
 	std::vector<std::pair<uint32_t, uint32_t>> prescan_stats; // Holds (running_count, detected_count)
 	// Push first batch
 	{
@@ -202,8 +166,7 @@ int main(int argc, char** argv)
 			<< " | running: " << prescan_stats.back().first
 			<< " | detected: " << prescan_stats.back().second;
 	}
-	t2 = std::chrono::steady_clock::now();
-	timer.add("Prescan", t1, t2);
+	timer.stop("Prescan");
 
 
 	// Find frame_size and batch_size based on the prescan stats.
@@ -229,7 +192,7 @@ int main(int argc, char** argv)
 	std::ostream& of = std::cout;
 
 	// Simulation
-	t1 = std::chrono::steady_clock::now();
+	timer.start();
 	for (;;)
 	{
 		// Copy the simulation to buffer,
@@ -271,8 +234,7 @@ int main(int argc, char** argv)
 		if (running_count == 0 && primaries_to_go == 0)
 			break;
 	}
-	t2 = std::chrono::steady_clock::now();
-	timer.add("Simulation", t1, t2);
+	timer.stop("Simulation");
 
 	cudaError_t err = cudaDeviceSynchronize();
 	if (err == 0)
