@@ -2,13 +2,11 @@ namespace nbl { namespace drivers {
 
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::cpu_driver(
+	typename geometry_manager_t>
+cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::cpu_driver(
 	geometry_manager_t geometry,
 	intersect_t intersect,
-	std::vector<material_t> materials,
+	std::vector<material_t> const & materials,
 	seed_t seed
 ) :
 	_particles(particle_manager_t::create()),
@@ -21,10 +19,8 @@ cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::c
 
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::~cpu_driver()
+	typename geometry_manager_t>
+cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::~cpu_driver()
 {
 	particle_manager_t::destroy(_particles);
 	material_manager_t::destroy(_materials);
@@ -32,10 +28,8 @@ cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::~
 
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-auto cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::push(
+	typename geometry_manager_t>
+auto cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push(
 	particle* particles,
 	primary_tag_t* tags,
 	particle_index_t N
@@ -46,58 +40,16 @@ auto cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manage
 
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::do_iteration()
-{
-	const auto particle_count = _particles.get_total_count();
-	for (particle_index_t particle_idx = 0; particle_idx < particle_count; ++particle_idx)
-	{
-		if (!_particles.active(particle_idx))
-			continue;
-
-		init(particle_idx);
-		intersect(particle_idx);
-		scatter(particle_idx);
-	}
-	_particles.flush_terminated();
-}
-
-template<typename scatter_list_t,
-	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::simulate_until_end()
-{
-	for (particle_index_t particle_idx = 0; particle_idx < _particles.get_total_count(); ++particle_idx)
-	{
-		while (_particles.active(particle_idx))
-		{
-			init(particle_idx);
-			intersect(particle_idx);
-			scatter(particle_idx);
-		}
-	}
-}
-
-template<typename scatter_list_t,
-	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-auto cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::get_running_count() const
+	typename geometry_manager_t>
+auto cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::get_running_count() const
 -> particle_index_t
 {
 	return _particles.get_running_count();
 }
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-auto cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::get_detected_count() const
+	typename geometry_manager_t>
+auto cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::get_detected_count() const
 -> particle_index_t
 {
 	return _particles.get_detected_count();
@@ -105,31 +57,19 @@ auto cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manage
 
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
+	typename geometry_manager_t>
 template<typename detect_function>
-void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::flush_detected(
+void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::flush_detected(
 	detect_function func)
 {
 	_particles.flush_detected(func);
-}
-template<typename scatter_list_t,
-	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::flush_terminated()
-{
 	_particles.flush_terminated();
 }
 
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::init(particle_index_t particle_idx)
+	typename geometry_manager_t>
+void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::init(particle_index_t particle_idx)
 {
 	// Get data from memory
 	auto this_particle = _particles[particle_idx];
@@ -190,10 +130,8 @@ void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manage
 
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::intersect(particle_index_t particle_idx)
+	typename geometry_manager_t>
+void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::intersect(particle_index_t particle_idx)
 {
 	// ignore all particles except those with an intersect event.
 	if (!_particles.next_intersect(particle_idx))
@@ -204,17 +142,15 @@ void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manage
 
 template<typename scatter_list_t,
 	typename intersect_t,
-	typename geometry_manager_t,
-	template<typename> class particle_manager
->
-void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t, particle_manager>::scatter(particle_index_t particle_idx)
+	typename geometry_manager_t>
+void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::scatter(particle_index_t particle_idx)
 {
 	// ignore all particles except those with an inelastic event.
 	if (!_particles.next_scatter(particle_idx))
 		return;
 
-	// forget last intersected triangle. This event might cause us to scatter back into that triangle
-	// and we don't want to ignore that triangle if so.
+	// forget last intersected triangle. This event might cause us to scatter
+	// back into that triangle and we don't want to ignore that triangle if so.
 	_particles.forget_last_triangle(particle_idx);
 
 	_materials[_particles.get_material_index(particle_idx)].execute(

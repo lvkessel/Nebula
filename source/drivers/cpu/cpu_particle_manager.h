@@ -2,6 +2,7 @@
 #define __CPU_PARTICLE_MANAGER_H_
 
 #include <vector>
+#include <map>
 
 namespace nbl { namespace drivers {
 
@@ -10,11 +11,10 @@ namespace nbl { namespace drivers {
  * Serves as a base class for a "simple" CPU particle manager
  * and a version with extended tracking facilities.
  */
-template<typename material_manager_t, typename additional_data>
+template<typename material_manager_t>
 class cpu_particle_manager
 {
 public:
-	using status_t = uint8_t;
 	using particle_index_t = size_t;
 	using material_index_t = typename material_manager_t::material_index_t;
 	using primary_tag_t = uint32_t;
@@ -25,8 +25,11 @@ public:
 	// Push particles to GPU. Returns how many particles were actually pushed.
 	particle_index_t push(particle* particles, primary_tag_t* tags, particle_index_t N);
 
+	// Sets detected particles to terminated and calls callback.
+	// Does not remove detected particles from memory.
 	template<typename detect_function>
 	void flush_detected(detect_function func);
+	// Remove terminated particles from memory.
 	void flush_terminated();
 
 	particle_index_t get_total_count() const;
@@ -39,12 +42,15 @@ public:
 
 	// Is there a memory location for this particle?
 	inline PHYSICS bool exists(particle_index_t i) const;
-	// Is particle active == not PENDING, DETECTED or TERMINATED
+	// Is particle active == not DETECTED or TERMINATED
 	inline PHYSICS bool active(particle_index_t i) const;
 
 	// Get current material
 	inline PHYSICS material_index_t get_material_index(particle_index_t i) const;
 	inline PHYSICS void set_material_index(particle_index_t particle_idx, material_index_t new_material_idx);
+
+	// Get primary tag
+	inline PHYSICS primary_tag_t get_primary_tag(particle_index_t i) const;
 
 	// Get last intersected triangle for a particle (or nullptr)
 	inline PHYSICS triangle const * get_last_triangle(particle_index_t i) const;
@@ -67,50 +73,39 @@ public:
 	inline PHYSICS void set_intersect_event(particle_index_t i, intersect_event event);
 
 protected:
+	enum particle_status
+	{
+		SCATTER_EVENT,
+		INTERSECT_EVENT,
+		NO_EVENT,
+		DETECTED,
+		TERMINATED
+	};
+
 	/*
 	 * particle_struct holds relevant data for each particle.
 	 * It inherits from the "additional_data" template parameter, which may be
 	 * void. This mechanism allows derived particle managers to store additional
 	 * data in addition to the necessities.
 	 */
-
-	// Boilerplate: inherit from "empty" if additional_data is void.
-	struct empty {};
-	template<typename T>
-	using optional_base_t = typename std::conditional<std::is_void<T>::value, empty, T>::type;
-
-	struct particle_struct : optional_base_t<additional_data>
+	struct particle_struct
 	{
-		status_t status;
+		particle_status status;
 		uint8_t next_scatter;
 		material_index_t current_material;
 		particle particle_data;
-		primary_tag_t primary_tag;
+		primary_tag_t primary_tag; // Tag belonging to primary electron
+		uint32_t secondary_tag;    // Unique tag for this electron in the primary's cascade
 		triangle* last_triangle;
-
-		using base_t = optional_base_t<additional_data>;
-
-		particle_struct(
-			status_t status, uint8_t next_scatter, material_index_t current_material,
-			particle particle_data, primary_tag_t primary_tag, triangle* last_triangle,
-			base_t const & add = {})
-			: base_t(add), status(status), next_scatter(next_scatter),
-			current_material(current_material), particle_data(particle_data),
-			primary_tag(primary_tag), last_triangle(last_triangle)
-		{}
 	};
+	std::vector<particle_struct> particles;
 
-	std::vector<particle_struct> data;
-
-	enum status_enum : status_t
+	struct cascade_struct
 	{
-		SCATTER_EVENT   = 0b0100,
-		INTERSECT_EVENT = 0b0010,
-		NO_EVENT        = 0b0110,
-		DETECTED        = 0b1010,
-		NEW_SECONDARY   = 0b1110,
-		TERMINATED      = 0b0011
+		uint32_t next_secondary_tag;
+		uint32_t running_count;
 	};
+	std::map<primary_tag_t, cascade_struct> cascades;
 };
 
 }} // namespace nbl::drivers
