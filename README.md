@@ -26,9 +26,9 @@ Later compilers are pretty much guaranteed to work. Earlier versions of these co
 * hdf5 1.8.13 or greater, with the high-level library.
 
 There are three main programs at the moment:
-* `gpu_main.cu`, which, incidentally, also supports a simple CPU version with a preprocessor flag.
-* `cpu_mt_main.cpp`, a multithreaded CPU version.
-* `cpu_inspect_main.cpp`, a single-threaded CPU version that uses the `tracking_cpu_particle_manager` to store and print some cascade information.
+* `nebula_gpu`, which uses CUDA for fast simulations
+* `nebula_cpu_mt`, a multithreaded CPU version.
+* `nebula_cpu_edep`, a CPU version that outputs information on energy deposits.
 
 They are all compiled with cmake:
 ```sh
@@ -54,20 +54,6 @@ All programs include the `physics_config.h` file, and expect it to define two da
 For most purposes, the file should speak for itself. If not, contact me. You can flip some switches in the template parameter lists for the inelastic, elastic and intersection physics. You can use the Kieft inelastic model instead of the Penn inelastic model by commenting the relevant lines.
 
 ## Inspecting the cascade
-If you want to extract information about the cascade, you need to tell the simulator what data to extract. Because of the large number of potentially interesting things, the design is deliberately "hacky": you have to dive into the simulator code, where you have access to all variables. Knowledge about the internals of the simulator is also required. If you get stuck, ask me. Documentation is on its way.
+There is one default way of inspecting the cascade. The `nebula_cpu_edep` program runs on the CPU, and outputs each event where energy was lost. By default, it outputs the usual detected electron data to a file `detected.bin`, while energy-deposition data is sent to stdout.
 
-Use the `cpu_inspect_main.cpp` for compilation. It uses the "tracking particle manager" by default, in which you can do your hacking. It can be found in `drivers/cpu/tracking_cpu_particle_manager.h`. It overrides the `create_secondary` and `set_scatter_event` functions from the normal particle manager. These overrided functions store the positions and kinetic energies for all scattering events.
-
-When the `flush_detected` function is run, all parent particles of each electron are guaranteed to still be in memory. The `data` member (defined in the base class, `drivers/cpu/cpu_particle_manager.h`) is an array of all particles in memory. Let's say you have an element from this `data` array, you can use:
-* `data[i].primary_tag`: for identifying if two particles belong to the same cascade. This is an integer and it is not unique.
-* `data[i].unique_tag`: a globally unique tag, can be used to identify a primary or secondary electron. Be warned that a primary electron's `primary_tag` is not the same as its `unique_tag`!
-* `data[i].parent_unique_tag`: this particle's parent's unique tag. Can be used to find the parent. Equal to zero if this is a primary particle.
-* `data[i].parent_create_event`: the index to the parent's `events` array corresponding to the event in which this particle was created.
-* `data[i].events`: an array of `event_info`, containing the following:
-  * `data[i].events[j].type`: by default, one for inelastic and two for elastic scattering
-  * `data[i].events[j].position.x/y/z`: position at which the scatter event took place
-  * `data[i].events[j].energy`: kinetic energy BEFORE the event
-
-By default, the `tracking_cpu_particle_manager` finds the deepest position (i.e. the lowest z coordinate) at which the electron, including all its parents, has been. It then prints this depth, along with the kinetic energy at that depth and the kinetic energy at detection, to stdout. This should serve as an example you can use to understand the system.
-
-Because the data is printed to stdout, it can be redirected to a file by running the simulation as `./nebula_inspect tri.tri pri.pri mat.mat > text_file.txt`.
+The file format is 5 floats and 2 ints. The floats are scattering position (x, y, z), the electron's energy before the event, and energy lost. The two ints are the pixel coordinates belonging to the primary electron. This data is only output for scattering events where energy was lost: pure elastic scattering events are not output. Be aware that HUGE amounts of data are generated.
