@@ -198,6 +198,7 @@ namespace
 
 hdf5_file::hdf5_file(std::string const & filename)
 {
+	H5Eset_auto(H5E_DEFAULT, nullptr, nullptr);
 	_file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
 	if (_file < 0)
 		throw std::runtime_error("Unable to open file " + filename);
