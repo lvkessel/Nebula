@@ -89,6 +89,29 @@ int main(int argc, char** argv)
 		std::clog << "Error: could not load triangles!\n" << usage << std::endl;
 		return 1;
 	}
+	// Sanity check with number of materials
+	{
+		int max_material = -1;
+		for (triangle const & tri : triangles)
+		{
+			if (tri.material_in > max_material)
+				max_material = tri.material_in;
+			if (tri.material_out > max_material)
+				max_material = tri.material_out;
+		}
+
+		if (max_material > pos_flags.size()-3)
+		{
+			std::clog << "Error: not enough materials provided for this geometry!\n"
+				"  Expected " << (max_material+1) << " materials, " << (pos_flags.size()-2) << " provided.\n";
+			return 1;
+		}
+		if (max_material < pos_flags.size()-3)
+		{
+			std::clog << "Warning: too many materials provided for this geometry!\n"
+				"  Expected " << (max_material+1) << " materials, " << (pos_flags.size()-2) << " provided.\n";
+		}
+	}
 
 	timer.start();
 	geometry_t geometry = geometry_t::create(triangles);
