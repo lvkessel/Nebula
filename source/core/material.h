@@ -35,13 +35,10 @@ public:
 	CPU material(nbl::hdf5_file const & mat);
 
 	/**
-	 * \brief Return whether an electron with given kinetic energy can leave
-	 * the material and reach the vacuum.
-	 */
-	inline PHYSICS bool can_reach_vacuum(real kineticEnergy) const;
-
-	/**
 	 * \brief Barrier energy, that is, the work function plus the Fermi energy.
+	 *
+	 * An electron cannot escape the material unless it has more kinetic energy
+	 * than this value.
 	 */
 	real barrier;
 };

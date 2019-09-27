@@ -45,6 +45,7 @@ material_t load_material(std::string const & filename)
 int main(int argc, char** argv)
 {
 	// Settings
+	real energy_threshold = 0;
 	size_t capacity = 1000000;
 	size_t prescan_size = 1000;
 	real batch_factor = .9_r;
@@ -52,6 +53,7 @@ int main(int argc, char** argv)
 	bool sort_primaries = false;
 
 	cli_params p(argc, argv);
+	p.get_optional_flag("energy-threshold", energy_threshold);
 	p.get_optional_flag("capacity", capacity);
 	p.get_optional_flag("prescan-size", prescan_size);
 	p.get_optional_flag("batch-factor", batch_factor);
@@ -61,11 +63,12 @@ int main(int argc, char** argv)
 	const std::string usage("Usage: " + p.get_program_name() +
 		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n"
 		"Options:\n"
-		"\t--capacity       [1000000]\n"
-		"\t--prescan-size   [1000]\n"
-		"\t--batch-factor   [0.9]\n"
-		"\t--seed           [0x14f8214e78c7e39b]\n"
-		"\t--sort-primaries [0]\n");
+		"\t--energy-threshold [0]\n"
+		"\t--capacity         [1000000]\n"
+		"\t--prescan-size     [1000]\n"
+		"\t--batch-factor     [0.9]\n"
+		"\t--seed             [0x14f8214e78c7e39b]\n"
+		"\t--sort-primaries   [0]\n");
 
 	// Setup time logging
 	time_log timer;
@@ -165,7 +168,7 @@ int main(int argc, char** argv)
 		<< "Loaded " << materials.size() << " materials.\n\n" << std::flush;
 
 	// Prepare driver
-	driver d(capacity, geometry, inter, materials, seed);
+	driver d(capacity, geometry, inter, materials, energy_threshold, seed);
 
 	// First, do the prescan
 	timer.start();

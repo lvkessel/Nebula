@@ -70,18 +70,24 @@ public:
 	template<typename detect_function>
 	void flush_detected(detect_function function);
 
+	// Energy threshold (w.r.t. the vacuum level) below which particles must be terminated.
+	real energy_threshold;
+
 protected:
 	/**
 	 * \brief Constructor.
 	 *
-	 * \param geometry  Geometry manager, holding the simulation geometry.
-	 * \param intersect Instance of the intersection handler.
-	 * \param materials List of materials in the simulation.
-	 * \param seed      Seed for the random number generator.
+	 * \param geometry         Geometry manager, holding the simulation geometry.
+	 * \param intersect        Instance of the intersection handler.
+	 * \param materials        List of materials in the simulation.
+	 * \param energy_threshold Energy threshold w.r.t. the vacuum level below
+	 *                         which particles must be terminated.
+	 * \param seed             Seed for the random number generator.
 	 */
 	cpu_driver(geometry_manager_t geometry,
 		intersect_t intersect,
 		std::vector<material_t> const & materials,
+		real energy_threshold = 0,
 		seed_t seed = util::random_generator<false>::default_seed);
 
 	/// Destructor

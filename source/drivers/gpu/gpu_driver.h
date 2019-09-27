@@ -48,10 +48,13 @@ public:
 	 * \param geom              Geometry manager, holding the simulation geometry.
 	 * \param inter             Instance of the intersection handler.
 	 * \param materials         List of materials in the simulation.
+	 * \param energy_threshold  Energy threshold w.r.t. the vacuum level below
+	 *                          which particles must be terminated.
 	 * \param seed              Seed for the random number generator.
 	 */
 	CPU gpu_driver(particle_index_t particle_capacity, geometry_manager_t geom,
 		intersect_t inter, std::vector<material_t> materials,
+		real energy_threshold = 0,
 		seed_t seed = util::random_generator<true>::default_seed);
 	CPU ~gpu_driver();
 
@@ -176,6 +179,9 @@ public:
 
 	/// Perform a single iteration of the simulation for all particles.
 	CPU void do_iteration();
+
+	// Energy threshold (w.r.t. the vacuum level) below which particles must be terminated.
+	real energy_threshold;
 
 private:
 	particle_manager_t _particles;

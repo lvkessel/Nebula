@@ -7,8 +7,10 @@ cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::cpu_driver(
 	geometry_manager_t geometry,
 	intersect_t intersect,
 	std::vector<material_t> const & materials,
+	real energy_threshold,
 	seed_t seed
 ) :
+	energy_threshold(energy_threshold),
 	_particles(particle_manager_t::create()),
 	_materials(material_manager_t::create(materials)),
 	_geometry(geometry),
@@ -93,9 +95,9 @@ void cpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::init(particle_
 	{
 		const auto this_material = _materials[this_material_idx];
 
-		// Terminate if we can't reach the vacuum
-		// It is more natural to put this further up.
-		if (!this_material.can_reach_vacuum(this_particle.kin_energy))
+		// Terminate if we are below the energy threshold
+		// (which is with respect to the vacuum energy)
+		if (this_particle.kin_energy < this_material.barrier + energy_threshold)
 		{
 			_particles.terminate(particle_idx);
 			return;

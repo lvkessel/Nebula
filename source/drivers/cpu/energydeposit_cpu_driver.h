@@ -29,8 +29,9 @@ public:
 		geometry_manager_t const & geometry,
 		intersect_t const & intersect,
 		std::vector<material_t> const & materials,
+		real energy_threshold = 0,
 		seed_t seed = util::random_generator<false>::default_seed)
-	: base_t(geometry, intersect, materials, seed)
+	: base_t(geometry, intersect, materials, energy_threshold, seed)
 	{}
 
 	/**

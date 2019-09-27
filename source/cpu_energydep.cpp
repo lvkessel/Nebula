@@ -50,11 +50,13 @@ material_t load_material(std::string const & filename)
 int main(int argc, char** argv)
 {
 	// Settings
+	real energy_threshold = 0;
 	typename driver::seed_t seed = 0x14f8214e78c7e39b;
 	std::string detect_filename = "detected.bin";
 	std::string deposit_filename = "stdout";
 
 	cli_params p(argc, argv);
+	p.get_optional_flag("energy-threshold", energy_threshold);
 	p.get_optional_flag("seed", seed);
 	p.get_optional_flag("detect-filename", detect_filename);
 	p.get_optional_flag("deposit-filename", deposit_filename);
@@ -62,6 +64,7 @@ int main(int argc, char** argv)
 	const std::string usage("Usage: " + p.get_program_name() +
 		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n"
 		"Options:\n"
+		"\t--energy-threshold [0]\n"
 		"\t--seed             [0x14f8214e78c7e39b]\n"
 		"\t--detect-filename  [detected.bin]\n"
 		"\t--deposit-filename [stdout]\n");
@@ -165,9 +168,9 @@ int main(int argc, char** argv)
 
 	// Simulation loop
 	auto sim_loop = [&pool, &detect_out, &deposit_out, &pixels,
-			&geometry, &inter, &materials](uint64_t seed)
+			&geometry, &inter, &materials, energy_threshold](uint64_t seed)
 	{
-		driver d(geometry, inter, materials, seed);
+		driver d(geometry, inter, materials, energy_threshold, seed);
 		output_buffer detect_buff(detect_out,
 			1024*(7*sizeof(float) + 2*sizeof(int)));
 		output_buffer deposit_buff(deposit_out,

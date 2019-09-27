@@ -11,9 +11,3 @@ CPU material<scatter_list<scatter_types...>>::material(nbl::hdf5_file const & ma
 	barrier(static_cast<real>(mat.get_property_quantity("barrier") / nbl::units::eV))
 {
 }
-
-template<typename... scatter_types>
-PHYSICS bool material<scatter_list<scatter_types...>>::can_reach_vacuum(real kineticEnergy) const
-{
-	return kineticEnergy >= barrier;
-}
