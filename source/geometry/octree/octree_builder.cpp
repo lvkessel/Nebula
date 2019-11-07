@@ -168,6 +168,46 @@ octree_root::octree_root(vec3 min, vec3 max)
 		_children[octant]._parent = this;
 }
 
+octree_root::octree_root(std::vector<triangle> const & triangles)
+{
+	if (triangles.empty())
+		return;
+
+	// Find AABB_min and max
+	vec3 AABB_min = triangles[0].AABB_min();
+	vec3 AABB_max = triangles[0].AABB_max();
+
+	for (const triangle t : triangles)
+	{
+		const vec3 tri_min = t.AABB_min();
+		const vec3 tri_max = t.AABB_max();
+
+		AABB_min =
+		{
+			std::min(AABB_min.x, tri_min.x),
+			std::min(AABB_min.y, tri_min.y),
+			std::min(AABB_min.z, tri_min.z)
+		};
+		AABB_max =
+		{
+			std::max(AABB_max.x, tri_max.x),
+			std::max(AABB_max.y, tri_max.y),
+			std::max(AABB_max.z, tri_max.z)
+		};
+	}
+
+	// Set AABB, create child nodes
+	center   = .5*(AABB_min + AABB_max);
+	halfsize = .5*(AABB_max - AABB_min) + vec3{1, 1, 1};
+	_children = new octree_child[8];
+	for (int octant = 0; octant < 8; ++octant)
+		_children[octant]._parent = this;
+
+	// Insert triangles
+	for (const auto tri : triangles)
+		insert(tri);
+}
+
 int octree_root::depth() const
 {
 	return 0;
@@ -205,14 +245,20 @@ std::vector<triangle> const & octree_root::triangles() const
 	return _triangles;
 }
 
-std::pair<std::vector<int>, std::vector<size_t>> octree_root::linearize() const
+linearized_octree::linearized_octree()
+{
+}
+
+linearized_octree::linearized_octree(octree_root const & root) :
+	center(root.center),
+	halfsize(root.halfsize)
 {
 	// Get a vector of all octree nodes.
 	// NOTE: because of the order in which we iterate, they are sorted by Morton order.
 	std::vector<octree_node const *> morton_nodes;
 	{
 		std::queue<octree_node const *> temp_queue;
-		temp_queue.push(this);
+		temp_queue.push(&root);
 		while (!temp_queue.empty())
 		{
 			auto this_node = temp_queue.front();
@@ -232,13 +278,12 @@ std::pair<std::vector<int>, std::vector<size_t>> octree_root::linearize() const
 
 
 	// Sort the triangles
-	std::vector<size_t> triangle_idx_vec;                // Indices in _triangles, such that the triangles are sorted by approximate Morton order
-	std::vector<size_t> triangle_map(_triangles.size()); // For an index in _triangles, points to the corresponding position in triangle_idx_vec.
+	std::vector<size_t> triangle_map(root._triangles.size()); // For an index in root.triangles, points to the corresponding position in triangle_data.
 	{
-		triangle_idx_vec.reserve(_triangles.size());
+		triangle_data.reserve(root._triangles.size());
 
-		// Temp vector, keeps track of whether a given triangle is already in triangle_idx_vec.
-		std::vector<bool> done(_triangles.size(), false);
+		// Temp vector, keeps track of whether a given triangle is already in triangle_data.
+		std::vector<bool> done(root._triangles.size(), false);
 		for (auto this_node : morton_nodes)
 		{
 			if (!this_node->is_leaf())
@@ -250,8 +295,8 @@ std::pair<std::vector<int>, std::vector<size_t>> octree_root::linearize() const
 					continue;
 
 				done[tri_idx] = true;
-				triangle_map[tri_idx] = triangle_idx_vec.size();
-				triangle_idx_vec.push_back(tri_idx);
+				triangle_map[tri_idx] = triangle_data.size();
+				triangle_data.push_back(root._triangles[tri_idx]);
 			}
 		}
 
@@ -261,25 +306,24 @@ std::pair<std::vector<int>, std::vector<size_t>> octree_root::linearize() const
 
 
 	// Build linearized octree index table
-	std::vector<int> octree_vec;
-	std::map<const octree_node*, size_t> node_p_map; // map from node pointers to their start in octree_vec
+	std::map<const octree_node*, size_t> node_p_map; // map from node pointers to their start in octree_data
 	for (auto this_node : morton_nodes)
 	{
-		node_p_map[this_node] = octree_vec.size();
+		node_p_map[this_node] = octree_data.size();
 		if (this_node->is_leaf())
 		{
 			// Leaf? Add triangle indices, and -1 at the end.
 			// (Indices to the SORTED triangles vector, that is.)
 			for(size_t tri_idx : dynamic_cast<octree_child const *>(this_node)->triangles())
-				octree_vec.push_back(triangle_map[tri_idx]);
-			octree_vec.push_back(-1);
+				octree_data.push_back(triangle_map[tri_idx]);
+			octree_data.push_back(-1);
 		}
 		else
 		{
 			// Not leaf? Add 8 empty elements for children.
 			// Values will be filled in later.
 			for(int octant = 0; octant < 8; octant++)
-				octree_vec.push_back(0);
+				octree_data.push_back(0);
 		}
 	}
 	for(auto nip : node_p_map)
@@ -293,13 +337,21 @@ std::pair<std::vector<int>, std::vector<size_t>> octree_root::linearize() const
 		for(int octant = 0; octant < 8; octant++)
 		{
 			const octree_child* child_p = node_p->get_child(octant);
-			octree_vec[index+octant] = node_p_map[child_p];
+			octree_data[index+octant] = node_p_map[child_p];
 			if (child_p->is_leaf())
-				octree_vec[index+octant] *= -1;
+				octree_data[index+octant] *= -1;
 		}
 	}
+}
 
-	return { octree_vec, triangle_idx_vec };
+vec3 linearized_octree::AABB_min() const
+{
+	return center - halfsize;
+}
+
+vec3 linearized_octree::AABB_max() const
+{
+	return center + halfsize;
 }
 
 }}} // namespace nbl::geometry::octree_builder

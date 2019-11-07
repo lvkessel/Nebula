@@ -3,6 +3,7 @@
 
 #include "../core/triangle.h"
 #include "../core/events.h"
+#include "octree/octree_builder.h"
 
 namespace nbl { namespace geometry {
 
@@ -34,11 +35,19 @@ public:
 	using triangle_index_t = uint32_t; ///< Type for indexing the triangles
 
 	/**
-	 * \brief Allocate memory on the correct device, and build the octree.
+	 * \brief Send the octree to the correct device
+	 *
+	 * \param linoct Linearized octree to send to the device.
+	 */
+	static CPU octree<gpu_flag> create(nbl::geometry::octree_builder::linearized_octree const & linoct);
+
+	/**
+	 * \brief Build the octree from a list of triangles, and send it to the correct device
 	 *
 	 * \param triangles List of triangles to be used in the simulation.
 	 */
 	static CPU octree<gpu_flag> create(std::vector<triangle> const & triangles);
+
 	/**
 	 * \brief Destroy the octree, deallocating the data.
 	 */
@@ -88,14 +97,12 @@ public:
 	inline PHYSICS vec3 AABB_max() const;
 
 private:
-	inline CPU void set_AABB(vec3 min, vec3 max);
 	inline static PHYSICS vec3 AABB_intersect(vec3 pos, vec3 dir, vec3 center, vec3 halfsize);
 
 	inline static PHYSICS int clz(uint64_t x);
 
 	int* _octree_data    = nullptr;
 	triangle* _triangles = nullptr;
-	triangle_index_t _N  = 0;
 	vec3 _AABB_center    = { 0, 0, 0 };
 	vec3 _AABB_halfsize  = { 0, 0, 0 };
 	real _max_extent     = 0;

@@ -170,9 +170,14 @@ class octree_root : public octree_node
 public:
 	/**
 	 * \brief Constructor, providing the minimum and maximum coordinates of the
-	 * root box.
+	 *        root box.
 	 */
 	octree_root(vec3 min, vec3 max);
+
+	/**
+	 * \brief Constructor, providing a list of triangles.
+	 */
+	octree_root(std::vector<triangle> const & triangles);
 
 	virtual int depth() const;
 
@@ -193,26 +198,53 @@ public:
 	 */
 	std::vector<triangle> const & triangles() const;
 
-	/**
-	 * \brief Build linearized octree table.
-	 *
-	 * This function returns two vectors.
-	 *
-	 * The first is the octree table:
-	 *  * index=0 : child does not exist
-	 *  * index>0 : non-leaf child with node indices
-	 *  * index<0 : leaf child with triangle indices (index -1 means no triangle)
-	 *
-	 * The second is a set of indices to the vector returned by {@link triangles()}.
-	 * The order of these indices is such that the triangles are (approximately)
-	 * sorted by Morton ordering.
-	 */
-	std::pair<std::vector<int>, std::vector<size_t>> linearize() const;
-
 private:
-	vec3 center;
-	vec3 halfsize;
+	vec3 center   = { 0, 0, 0 };
+	vec3 halfsize = { 0, 0, 0 };
 	std::vector<triangle> _triangles;
+
+	friend class linearized_octree;
+};
+
+class linearized_octree
+{
+public:
+	/**
+	 * \brief Construct to invalid state
+	 */
+	explicit linearized_octree();
+
+	/**
+	 * \brief Construct from a hierarchical octree structure.
+	 */
+	linearized_octree(octree_root const & root);
+
+	/**
+	 * \brief Octree data.
+	 *
+	 * Contains indices, either into itself (if not a leaf node) or into the
+	 * triangle_data vector (if a leaf node).
+	 *  * value=0 : child does not exist
+	 *  * value>0 : non-leaf child with node indices
+	 *  * value<0 : leaf child with triangle indices (index -1 means no triangle)
+	 */
+	std::vector<int> octree_data;
+
+	/**
+	 * \brief Triangle data, approximately sorted by Morton ordering.
+	 */
+	std::vector<triangle> triangle_data;
+
+	/// Coordinate of the domain center
+	vec3 center   = { 0, 0, 0 };
+
+	/// The domain's half-extent
+	vec3 halfsize = { 0, 0, 0 };
+
+	/// Get the (axis-aligned) simulation domain.
+	vec3 AABB_min() const;
+	/// Get the (axis-aligned) simulation domain.
+	vec3 AABB_max() const;
 };
 
 }}} // namespace nbl::geometry::octree_builder

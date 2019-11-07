@@ -1,47 +1,18 @@
-#include "octree/octree_builder.h"
-
 namespace nbl { namespace geometry {
+
+template<bool gpu_flag>
+CPU octree<gpu_flag> octree<gpu_flag>::create(octree_builder::linearized_octree const & linoct)
+{
+	return detail::octree_factory<gpu_flag>::create(linoct);
+}
 
 template<bool gpu_flag>
 CPU octree<gpu_flag> octree<gpu_flag>::create(std::vector<triangle> const & triangles)
 {
-	// TODO: error message
-	if (triangles.empty())
-		throw std::runtime_error("No triangles provided!");
-
-	// Find AABB_min and max
-	vec3 AABB_min = triangles[0].AABB_min();
-	vec3 AABB_max = triangles[0].AABB_max();
-
-	for (const triangle t : triangles)
-	{
-		const vec3 tri_min = t.AABB_min();
-		const vec3 tri_max = t.AABB_max();
-
-		AABB_min =
-		{
-			std::min(AABB_min.x, tri_min.x),
-			std::min(AABB_min.y, tri_min.y),
-			std::min(AABB_min.z, tri_min.z)
-		};
-		AABB_max =
-		{
-			std::max(AABB_max.x, tri_max.x),
-			std::max(AABB_max.y, tri_max.y),
-			std::max(AABB_max.z, tri_max.z)
-		};
-	}
-
-	AABB_min -= vec3{ 1, 1, 1 };
-	AABB_max += vec3{ 1, 1, 1 };
-
-	// Create octree structure
-	nbl::geometry::octree_builder::octree_root root(AABB_min, AABB_max);
-	for (auto triangle : triangles)
-		root.insert(triangle);
-
-	// TODO: ensure that triangles.size() fits in octree._N
-	return detail::octree_factory<gpu_flag>::create(root, AABB_min, AABB_max);
+	return detail::octree_factory<gpu_flag>::create(
+		octree_builder::linearized_octree(
+			octree_builder::octree_root(triangles)
+		));
 }
 
 template<bool gpu_flag>
@@ -236,18 +207,6 @@ inline PHYSICS vec3 octree<gpu_flag>::AABB_max() const
 }
 
 template<bool gpu_flag>
-CPU void octree<gpu_flag>::set_AABB(vec3 min, vec3 max)
-{
-	_AABB_center = (min+max)/2;
-	_AABB_halfsize.x = std::fabs(max.x-min.x)/2;
-	_AABB_halfsize.y = std::fabs(max.y-min.y)/2;
-	_AABB_halfsize.z = std::fabs(max.z-min.z)/2;
-
-	const vec3 m = max - min;
-	_max_extent = magnitude(m);
-}
-
-template<bool gpu_flag>
 PHYSICS vec3 octree<gpu_flag>::AABB_intersect(vec3 pos, vec3 dir, vec3 center, vec3 halfsize)
 {
 	return
@@ -284,28 +243,22 @@ namespace detail
 	struct octree_factory<false>
 	{
 		inline static CPU octree<false> create(
-			nbl::geometry::octree_builder::octree_root const & root,
-			vec3 AABB_min, vec3 AABB_max)
+			octree_builder::linearized_octree const & linoct)
 		{
 			octree<false> geometry;
 
-			// Linearize octree
-			const std::pair<std::vector<int>, std::vector<size_t>> octree_data = root.linearize();
-
-			// Copy number of triangles
-			geometry._N = octree_data.second.size();
-
 			// Copy octree data
-			geometry._octree_data = new int[octree_data.first.size()];
-			memcpy(geometry._octree_data, octree_data.first.data(), octree_data.first.size() * sizeof(int));
+			geometry._octree_data = new int[linoct.octree_data.size()];
+			memcpy(geometry._octree_data, linoct.octree_data.data(), linoct.octree_data.size() * sizeof(int));
 
 			// Copy triangle data
-			geometry._triangles = reinterpret_cast<triangle*>(malloc(geometry._N * sizeof(triangle)));
-			for (octree<false>::triangle_index_t i = 0; i < geometry._N; ++i)
-				geometry._triangles[i] = root.triangles()[octree_data.second[i]];
+			geometry._triangles = reinterpret_cast<triangle*>(malloc(linoct.triangle_data.size() * sizeof(triangle)));
+			memcpy(geometry._triangles, linoct.triangle_data.data(), linoct.triangle_data.size() * sizeof(triangle));
 
 			// Copy AABB
-			geometry.set_AABB(AABB_min, AABB_max);
+			geometry._AABB_center = linoct.center;
+			geometry._AABB_halfsize = linoct.halfsize;
+			geometry._max_extent = 2*magnitude(linoct.halfsize);
 
 			return geometry;
 		}
@@ -317,7 +270,6 @@ namespace detail
 
 			geometry._octree_data = nullptr;
 			geometry._triangles = nullptr;
-			geometry._N = 0;
 		}
 	};
 
@@ -326,33 +278,24 @@ namespace detail
 	struct octree_factory<true>
 	{
 		inline static CPU octree<true> create(
-			nbl::geometry::octree_builder::octree_root const & root,
-			vec3 AABB_min, vec3 AABB_max)
+			octree_builder::linearized_octree const & linoct)
 		{
 			octree<true> geometry;
 
-			// Linearize octree
-			const std::pair<std::vector<int>, std::vector<size_t>> octree_data = root.linearize();
-
-			// Copy number of triangles
-			geometry._N = octree_data.second.size();
-
 			// Copy octree data
-			cuda::cuda_new<int>(&geometry._octree_data, octree_data.first.size());
-			cudaMemcpy(geometry._octree_data, octree_data.first.data(),
-				octree_data.first.size()*sizeof(int), cudaMemcpyHostToDevice);
+			cuda::cuda_new<int>(&geometry._octree_data, linoct.octree_data.size());
+			cudaMemcpy(geometry._octree_data, linoct.octree_data.data(),
+				linoct.octree_data.size()*sizeof(int), cudaMemcpyHostToDevice);
 
 			// Copy triangle data
-			cuda::cuda_new<triangle>(&geometry._triangles, geometry._N);
-			cuda::cuda_mem_scope<triangle>(geometry._triangles, geometry._N,
-				[&root, &octree_data, &geometry](triangle* device)
-			{
-				for (octree<true>::triangle_index_t i = 0; i < geometry._N; ++i)
-					device[i] = root.triangles()[octree_data.second[i]];
-			});
+			cuda::cuda_new<triangle>(&geometry._triangles, linoct.triangle_data.size());
+			cudaMemcpy(geometry._triangles, linoct.triangle_data.data(),
+				linoct.triangle_data.size()*sizeof(triangle), cudaMemcpyHostToDevice);
 
 			// Copy AABB
-			geometry.set_AABB(AABB_min, AABB_max);
+			geometry._AABB_center = linoct.center;
+			geometry._AABB_halfsize = linoct.halfsize;
+			geometry._max_extent = 2*magnitude(linoct.halfsize);
 
 			return geometry;
 		}
@@ -364,7 +307,6 @@ namespace detail
 
 			geometry._octree_data = nullptr;
 			geometry._triangles = nullptr;
-			geometry._N = 0;
 		}
 	};
 #endif // CUDA_COMPILER_AVAILABLE
