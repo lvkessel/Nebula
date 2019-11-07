@@ -80,9 +80,10 @@ public:
 			// expected to dominate the result. In addition, the ratio between
 			// different shells stays fairly similar through energy. So this is
 			// a good approximation and gives a significant speed advantage.
-			const real x = logr(omega);
-			const real y = rng.unit();
-			binding = _ionisation_table.get_rounddown(x, y);
+			const real x = logr(this_particle.kin_energy);
+			const real y = logr(omega/this_particle.kin_energy);
+			const real z = rng.unit();
+			binding = _ionisation_table.get_rounddown(x, y, z);
 		}
 
 		// Normalise direction
@@ -376,24 +377,31 @@ public:
 		});
 
 
-		inel._ionisation_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
-		inel._ionisation_table.mem_scope([&](real** ionisation_vector)
+		inel._ionisation_table = util::table_3D<real, gpu_flag>::create(logr(K_min), logr(K_max), 128, logr(1e-4), logr(1), 1024, 0, 1, 1024);
+		util::geomspace<units::quantity<double>> kk_range(K_min*units::eV, K_max*units::eV, 128);
+		util::geomspace<units::quantity<double>> omega_range(1e-4*units::dimensionless, 1*units::dimensionless, 1024);
+		util::linspace<units::quantity<double>> pp_range(0*units::dimensionless, 1*units::dimensionless, 1024);
+		inel._ionisation_table.mem_scope([&](real*** ionisation_vector)
 		{
-			const auto icdf_table = mat.get_table_axes<2>("ionization/binding_icdf");
+			const auto icdf_table = mat.get_table_axes<3>("ionization/binding_icdf");
 
 			// Create the simulation table
-			for (int y = 0; y < P_cnt; ++y)
+			for (int z = 0; z < 1024; ++z)
 			{
-				const units::quantity<double> P = P_range[y];
-				for (int x = 0; x < K_cnt; ++x)
+				const units::quantity<double> P = pp_range[z];
+				for (int y = 0; y < 1024; ++y)
 				{
-					const units::quantity<double> K = K_range[x];
+					const units::quantity<double> omega = omega_range[y];
+					for (int x = 0; x < 128; ++x)
+					{
+						const units::quantity<double> K = kk_range[x];
 
-					units::quantity<double> binding = icdf_table.get_rounddown(K, P);
-					if (binding < 50 * units::eV || !std::isfinite(binding.value))
-						binding = -1 * units::eV;
+						units::quantity<double> binding = icdf_table.get_rounddown(K, omega, P);
+						if (binding < 50 * units::eV || !std::isfinite(binding.value))
+							binding = -1 * units::eV;
 
-					ionisation_vector[y][x] = real(binding / units::eV);
+						ionisation_vector[z][y][x] = real(binding / units::eV);
+					}
 				}
 			}
 		});
@@ -415,7 +423,7 @@ public:
 		target._log_imfp_table = util::table_1D<real, gpu_flag>::create(source._log_imfp_table);
 		target._log_omega_icdf_table = util::table_2D<real, gpu_flag>::create(source._log_omega_icdf_table);
 		target._q_icdf_table = util::table_3D<real, gpu_flag>::create(source._q_icdf_table);
-		target._ionisation_table = util::table_2D<real, gpu_flag>::create(source._ionisation_table);
+		target._ionisation_table = util::table_3D<real, gpu_flag>::create(source._ionisation_table);
 
 		return target;
 	}
@@ -428,7 +436,7 @@ public:
 		util::table_1D<real, gpu_flag>::destroy(inel._log_imfp_table);
 		util::table_2D<real, gpu_flag>::destroy(inel._log_omega_icdf_table);
 		util::table_3D<real, gpu_flag>::destroy(inel._q_icdf_table);
-		util::table_2D<real, gpu_flag>::destroy(inel._ionisation_table);
+		util::table_3D<real, gpu_flag>::destroy(inel._ionisation_table);
 	}
 
 private:
@@ -470,13 +478,14 @@ private:
 	 *
 	 * Specifically, stores `binding energy / eV` as function of
 	 *   - x axis: `log(kinetic energy / eV)`
-	 *   - y axis: cumulative probability (between 0 and 1)
+	 *   - y axis: `log(omega / kinetic energy)`
+	 *   - z axis: cumulative probability (between 0 and 1)
 	 *
 	 * "No binding energy" is denoted by -1 in the table.
 	 *
 	 * Be sure to use .get_rounddown() for non-interpolated values
 	 */
-	util::table_2D<real, gpu_flag> _ionisation_table;
+	util::table_3D<real, gpu_flag> _ionisation_table;
 
 	real _fermi;    ///< Fermi energy (eV)
 	real _band_gap; ///< Band gap (eV) (no band gap is denoted by -1)
