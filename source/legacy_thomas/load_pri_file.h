@@ -27,6 +27,9 @@ size_t num_pris(std::string const & filename)
 
 std::pair<std::vector<particle>, std::vector<int2>> load_pri_file(std::string const & filename, vec3 min_pos, vec3 max_pos)
 {
+	constexpr size_t pri_size = 7*sizeof(float) + 2*sizeof(int);
+	constexpr size_t buffer_size = 1024;
+
 	std::vector<particle> particle_vec;
 	std::vector<int2> pixel_vec;
 
@@ -42,62 +45,69 @@ std::pair<std::vector<particle>, std::vector<int2>> load_pri_file(std::string co
 	particle_vec.reserve(estimated_number);
 	pixel_vec.reserve(estimated_number);
 
+	// Allocate temporary buffer
+	std::vector<char> buffer(pri_size * buffer_size);
+
 	std::ifstream ifs(filename, std::ifstream::binary);
 	if (!ifs.is_open())
 		return { particle_vec, pixel_vec };
 
 	while(!ifs.eof())
 	{
-		float buffer[7];
-		int2 pixel;
-		ifs.read(reinterpret_cast<char*>(buffer), sizeof(buffer));
-		if (ifs.gcount() == 0)
+		ifs.read(buffer.data(), buffer.size());
+		const size_t N_read = ifs.gcount() / pri_size;
+
+		if (N_read == 0)
 			break; // end of file
-		if (ifs.gcount() != sizeof(buffer))
-			throw std::runtime_error("Unexpected end of primaries file");
-		ifs.read(reinterpret_cast<char*>(&pixel), sizeof(pixel));
-		if (ifs.gcount() != sizeof(pixel))
+		if (N_read * pri_size != ifs.gcount())
 			throw std::runtime_error("Unexpected end of primaries file");
 
-		particle primary
+		for (size_t i = 0; i < N_read; ++i)
 		{
-			{ buffer[0], buffer[1], buffer[2] }, // pos
-			{ buffer[3], buffer[4], buffer[5] }, // dir
-			buffer[6]                            // energy
-		};
+			float* floats = reinterpret_cast<float*>(buffer.data() + i*pri_size);
+			int* ints = reinterpret_cast<int*>(floats + 7);
 
-		// NAN < xxx == FALSE, so this form works correctly if NaN is read from the file
-		if (!(primary.pos.x > min_pos.x && primary.pos.y > min_pos.y && primary.pos.z > min_pos.z &&
-			primary.pos.x < max_pos.x && primary.pos.y < max_pos.y && primary.pos.z < max_pos.z))
-		{
-			if (outside_geom.first == 0)
-				outside_geom.second = primary.pos;
-			++outside_geom.first;
+			particle primary
+			{
+				{ floats[0], floats[1], floats[2] }, // pos
+				{ floats[3], floats[4], floats[5] }, // dir
+				floats[6]                            // energy
+			};
+			int2 pixel { ints[0], ints[1] };
+
+			// NAN < xxx == FALSE, so this form works correctly if NaN is read from the file
+			if (!(primary.pos.x > min_pos.x && primary.pos.y > min_pos.y && primary.pos.z > min_pos.z &&
+				primary.pos.x < max_pos.x && primary.pos.y < max_pos.y && primary.pos.z < max_pos.z))
+			{
+				if (outside_geom.first == 0)
+					outside_geom.second = primary.pos;
+				++outside_geom.first;
+			}
+
+			if (!(primary.kin_energy > EPSILON))
+			{
+				if (low_energy.first == 0)
+					low_energy.second = primary.kin_energy;
+				++low_energy.first;
+			}
+
+			if (primary.kin_energy > K_max)
+			{
+				if (high_energy.first == 0)
+					high_energy.second = primary.kin_energy;
+				++high_energy.first;
+			}
+
+			if (!(std::abs(primary.dir.x) > EPSILON || std::abs(primary.dir.y) > EPSILON || std::abs(primary.dir.z) > EPSILON))
+			{
+				if (direction.first == 0)
+					direction.second = primary.dir;
+				++direction.first;
+			}
+
+			particle_vec.push_back(primary);
+			pixel_vec.push_back(pixel);
 		}
-
-		if (!(primary.kin_energy > EPSILON))
-		{
-			if (low_energy.first == 0)
-				low_energy.second = primary.kin_energy;
-			++low_energy.first;
-		}
-
-		if (primary.kin_energy > K_max)
-		{
-			if (high_energy.first == 0)
-				high_energy.second = primary.kin_energy;
-			++high_energy.first;
-		}
-
-		if (!(std::abs(primary.dir.x) > EPSILON || std::abs(primary.dir.y) > EPSILON || std::abs(primary.dir.z) > EPSILON))
-		{
-			if (direction.first == 0)
-				direction.second = primary.dir;
-			++direction.first;
-		}
-
-		particle_vec.push_back(primary);
-		pixel_vec.push_back(pixel);
 	}
 	ifs.close();
 
@@ -124,7 +134,7 @@ std::pair<std::vector<particle>, std::vector<int2>> load_pri_file(std::string co
 			<< direction.second.z << ")." << std::endl;
 
 
-	return { particle_vec, pixel_vec };
+	return { std::move(particle_vec), std::move(pixel_vec) };
 }
 
 uint64_t morton(uint16_t x, uint16_t y, uint16_t z)
