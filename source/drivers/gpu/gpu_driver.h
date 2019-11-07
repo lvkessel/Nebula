@@ -3,6 +3,7 @@
 
 #include "../../core/material_manager.h"
 #include "../../common/util/random.h"
+#include "../../common/work_pool.h"
 #include "gpu_particle_manager.h"
 
 namespace nbl { namespace drivers {
@@ -126,16 +127,12 @@ public:
 	 * The actual number of particles pushed may be different than requested if
 	 * the buffer is still (partially) full or smaller than requested.
 	 *
-	 * \param particles Pointer to an array of particles to be added.
-	 * \param tags      Pointer to the corresponding array of tags.
-	 * \param N         Number of particles to be added.
-	 *
-	 * \return Number of particles added to the simulation.
+	 * \param pool The work pool to add particles from.
 	 *
 	 * \see allocate_input_buffers
 	 * \see push_to_simulation
 	 */
-	CPU particle_index_t push_to_buffer(particle* particles, uint32_t* tags, particle_index_t N);
+	CPU void push_to_buffer(work_pool& pool);
 
 	/**
 	 * \brief Push electrons in the input buffer to the simulation.

@@ -15,6 +15,13 @@ class work_pool
 {
 public:
 	/**
+	 * \brief Construct to invalid state.
+	 */
+	explicit work_pool()
+		: next_primary(nullptr), next_tag(nullptr), primaries_to_go(0)
+	{}
+
+	/**
 	 * \brief Constructor.
 	 *
 	 * \param primaries Pointer to primary electron data
@@ -48,6 +55,38 @@ public:
 		return return_data;
 	}
 
+	/**
+	 * Get work to be done
+	 *
+	 * This function checks `in_data` to see whether a slot is free. The
+	 * particle and tag data are then copied, and `in_data` is updated.
+	 *
+	 * \param data      Indicates if a slot is free (0 if free, 1 if full).
+	 * \param particles Array for particle data
+	 * \param tags      Array for tag data
+	 * \param N         Length of the arrays
+	 */
+	void get_work(bool* data, particle* particles, uint32_t* tags, uint32_t N)
+	{
+		std::lock_guard<std::mutex> lock(mutex);
+
+		for (uint32_t i = 0; i < N; ++i)
+		{
+			if (primaries_to_go == 0)
+				break;
+			if (data[i] != 0)
+				continue;
+
+			data[i] = 1;
+			particles[i] = *next_primary;
+			tags[i] = *next_tag;
+
+			++next_primary;
+			++next_tag;
+			--primaries_to_go;
+		}
+	}
+
 	/// Get the amount of work left in the pool
 	size_t get_primaries_to_go() const
 	{
@@ -59,6 +98,20 @@ public:
 	bool done() const
 	{
 		return get_primaries_to_go() == 0;
+	}
+
+	work_pool& operator=(work_pool const & rhs)
+	{
+		if (this == &rhs)
+			return *this;
+
+		std::lock_guard<std::mutex> lock1(rhs.mutex);
+		std::lock_guard<std::mutex> lock2(mutex);
+		next_primary = rhs.next_primary;
+		next_tag = rhs.next_tag;
+		primaries_to_go = rhs.primaries_to_go;
+
+		return *this;
 	}
 
 private:

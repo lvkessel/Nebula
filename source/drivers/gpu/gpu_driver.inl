@@ -216,11 +216,9 @@ template<typename scatter_list_t,
 	typename intersect_t,
 	typename geometry_manager_t
 >
-CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push_to_buffer(
-	particle* particles,
-	uint32_t* tags,
-	particle_index_t N
-) -> particle_index_t
+CPU void gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push_to_buffer(
+	work_pool& pool
+)
 {
 	// Copy device to host
 	cudaMemcpyAsync(buffer_hin_data, buffer_din_data, buffer_in_size*sizeof(bool),
@@ -232,17 +230,7 @@ CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push_to_bu
 	cudaStreamSynchronize(buffer_stream);
 
 	// Copy data
-	particle_index_t N_pushed = 0;
-	for (particle_index_t i = 0; i < std::min(N, buffer_in_size); ++i)
-	{
-		if (buffer_hin_data[i] != 0)
-			continue;
-
-		buffer_hin_data[i] = 1;
-		buffer_hin_particles[i] = particles[N_pushed];
-		buffer_hin_tags[i] = tags[N_pushed];
-		++N_pushed;
-	}
+	pool.get_work(buffer_hin_data, buffer_hin_particles, buffer_hin_tags, buffer_in_size);
 
 	// Copy back to device
 	cudaMemcpyAsync(buffer_din_data, buffer_hin_data, buffer_in_size*sizeof(bool),
@@ -252,8 +240,6 @@ CPU auto gpu_driver<scatter_list_t, intersect_t, geometry_manager_t>::push_to_bu
 	cudaMemcpyAsync(buffer_din_tags, buffer_hin_tags, buffer_in_size*sizeof(uint32_t),
 		cudaMemcpyHostToDevice, buffer_stream);
 	cudaStreamSynchronize(buffer_stream);
-
-	return N_pushed;
 }
 
 template<typename scatter_list_t,
