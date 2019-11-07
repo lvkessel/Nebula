@@ -57,6 +57,12 @@ public:
 		T* data = nullptr);
 
 	/**
+	 * \brief Create a table, as a deep copy of another one.
+	 */
+	template<bool source_gpu_flag>
+	static CPU table_3D<T, gpu_flag> create(table_3D<T, source_gpu_flag> const & source);
+
+	/**
 	 * \brief Destroy a table, deallocating the data.
 	 */
 	static CPU void destroy(table_3D<T, gpu_flag> & arr);
@@ -75,6 +81,12 @@ public:
 	 */
 	template<typename callback_function>
 	CPU void mem_scope(callback_function callback);
+
+	/**
+	 * \brief Copy the data from another table to this one.
+	 */
+	template<bool other_gpu_flag>
+	CPU void set(table_3D<T, other_gpu_flag> const & source);
 
 	/**
 	 * \brief Direct read-write access to data. No bounds checking is done.
@@ -147,6 +159,8 @@ private:
 	real _z_step = 0;
 
 	friend struct detail::table_3D_factory<T, gpu_flag>;
+	friend struct detail::table_3D_factory<T, !gpu_flag>;
+	friend struct table_3D<T, !gpu_flag>;
 };
 
 }} // namespace nbl::util

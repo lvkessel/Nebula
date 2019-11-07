@@ -23,6 +23,24 @@ CPU table_3D<T, gpu_flag> table_3D<T, gpu_flag>::create(
 
 	return table;
 }
+
+template<typename T, bool gpu_flag>
+template<bool source_gpu_flag>
+CPU table_3D<T, gpu_flag> table_3D<T, gpu_flag>::create(
+	table_3D<T, source_gpu_flag> const & source)
+{
+	table_3D<T, gpu_flag> table;
+	detail::table_3D_factory<T, gpu_flag>::allocate(table, source._width, source._height, source._depth);
+	detail::table_3D_factory<T, gpu_flag>::set(table, source);
+	table._x_min = source._x_min;
+	table._x_step = source._x_step;
+	table._y_min = source._y_min;
+	table._y_step = source._y_step;
+	table._z_min = source._z_min;
+	table._z_step = source._z_step;
+	return table;
+}
+
 template<typename T, bool gpu_flag>
 CPU void table_3D<T, gpu_flag>::destroy(table_3D<T, gpu_flag> & table)
 {
@@ -34,6 +52,15 @@ template<typename callback_function>
 CPU void table_3D<T, gpu_flag>::mem_scope(callback_function callback)
 {
 	detail::table_3D_factory<T, gpu_flag>::mem_scope(*this, callback);
+}
+
+template<typename T, bool gpu_flag>
+template<bool other_gpu_flag>
+CPU void table_3D<T, gpu_flag>::set(table_3D<T, other_gpu_flag> const & source)
+{
+	if (_width != source._width || _height != source._height || _depth != source._depth)
+		throw std::runtime_error("Size of target table does not match source table");
+	detail::table_3D_factory<T, gpu_flag>::set(*this, source);
 }
 
 template<typename T, bool gpu_flag>
@@ -122,8 +149,23 @@ namespace detail
 
 		inline static CPU void set(table_3D<T, false> & table, T* data)
 		{
-			memcpy(table._data, data, table._width * table._height * table._depth * sizeof(T));
+			memcpy(table._data, data,
+				table._width * table._height * table._depth * sizeof(T));
 		}
+		inline static CPU void set(table_3D<T, false> & target, table_3D<T, false> const & source)
+		{
+			memcpy(target._data, source.data,
+				target._width * target._height * target._depth * sizeof(T));
+		}
+#if CUDA_COMPILER_AVAILABLE
+		inline static CPU void set(table_3D<T, false> & target, table_3D<T, true> const & source)
+		{
+			cudaMemcpy2D(target._data, target._pitch,
+				source._data, source._pitch,
+				target._width*sizeof(T), target._height*target._depth,
+				cudaMemcpyDeviceToHost);
+		}
+#endif // CUDA_COMPILER_AVAILABLE
 
 		template<typename callback_function>
 		inline static CPU void mem_scope(table_3D<T, false> & table, callback_function callback)
@@ -167,17 +209,25 @@ namespace detail
 
 		inline static CPU void set(table_3D<T, true> & table, T* data)
 		{
-			const auto width = table._width;
-			const auto height = table._height;
-			const auto depth = table._depth;
-			cuda::cuda_mem_scope_3D(table._data, table._pitch, width, height, depth,
-				[data, width, height, depth](T*** device)
-				{
-					for (size_t z = 0; z < depth; ++z)
-						for (size_t y = 0; y < height; ++y)
-							for (size_t x = 0; x < width; ++x)
-								device[z][y][x] = data[z*width*height + y*width + x];
-				});
+			cudaMemcpy2D(table._data, table._pitch,
+				data, table._width*sizeof(T),
+				table._width*sizeof(T), table._height*table._depth,
+				cudaMemcpyHostToDevice);
+		}
+		inline static CPU void set(table_3D<T, true> & target, table_3D<T, false> const & source)
+		{
+			cudaMemcpy2D(target._data, target._pitch,
+				source._data, source._pitch,
+				target._width*sizeof(T), target._height*target._depth,
+				cudaMemcpyHostToDevice);
+		}
+		inline static CPU void set(table_2D<T, true> & target, table_2D<T, true> const & source)
+		{
+			// We only support CPU-GPU clones for now.
+			// To go the other way, the user expects us to do a peer-to-peer copy,
+			// which we can't do because we don't want to rely on unified addressing
+			// and this class does not keep track of the GPU its data resides on.
+			static_assert(true, "GPU-GPU clones not supported yet.");
 		}
 
 		template<typename callback_function>

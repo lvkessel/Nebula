@@ -15,6 +15,20 @@ CPU table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(
 	table._x_step = (n - 1) / (x_max - x_min);
 	return table;
 }
+
+template<typename T, bool gpu_flag>
+template<bool source_gpu_flag>
+CPU table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(
+	table_1D<T, source_gpu_flag> const & source)
+{
+	table_1D<T, gpu_flag> table;
+	detail::table_1D_factory<T, gpu_flag>::allocate(table, source._n);
+	detail::table_1D_factory<T, gpu_flag>::set(table, source);
+	table._x_min = source._x_min;
+	table._x_step = source._x_step;
+	return table;
+}
+
 template<typename T, bool gpu_flag>
 CPU void table_1D<T, gpu_flag>::destroy(table_1D<T, gpu_flag> & table)
 {
@@ -26,6 +40,15 @@ template<typename callback_function>
 CPU void table_1D<T, gpu_flag>::mem_scope(callback_function callback)
 {
 	detail::table_1D_factory<T, gpu_flag>::mem_scope(*this, callback);
+}
+
+template<typename T, bool gpu_flag>
+template<bool other_gpu_flag>
+CPU void table_1D<T, gpu_flag>::set(table_1D<T, other_gpu_flag> const & source)
+{
+	if (_n != source._n)
+		throw std::runtime_error("Size of target table does not match source table");
+	detail::table_1D_factory<T, gpu_flag>::set(*this, source);
 }
 
 template<typename T, bool gpu_flag>
@@ -72,6 +95,16 @@ namespace detail
 		{
 			memcpy(table._data, data, table._n * sizeof(T));
 		}
+		inline static CPU void set(table_1D<T, false> & target, table_1D<T, false> const & source)
+		{
+			memcpy(target._data, source._data, target._n*sizeof(T));
+		}
+#if CUDA_COMPILER_AVAILABLE
+		inline static CPU void set(table_1D<T, false> & target, table_1D<T, true> const & source)
+		{
+			cudaMemcpy(target._data, source._data, target._n*sizeof(T), cudaMemcpyDeviceToHost);
+		}
+#endif // CUDA_COMPILER_AVAILABLE
 
 		template<typename callback_function>
 		inline static CPU void mem_scope(table_1D<T, false> & table, callback_function callback)
@@ -99,12 +132,19 @@ namespace detail
 
 		inline static CPU void set(table_1D<T, true> & table, T* data)
 		{
-			const auto n = table._n;
-			cuda::cuda_mem_scope<T>(table._data, table._n, [data, n](T* device)
-			{
-				for (size_t i = 0; i < n; ++i)
-					device[i] = data[i];
-			});
+			cudaMemcpy(table._data, data, table._n*sizeof(T), cudaMemcpyHostToDevice);
+		}
+		inline static CPU void set(table_1D<T, true> & target, table_1D<T, false> const & source)
+		{
+			cudaMemcpy(target._data, source._data, target._n*sizeof(T), cudaMemcpyHostToDevice);
+		}
+		inline static CPU void set(table_1D<T, true> & target, table_1D<T, true> const & source)
+		{
+			// We only support CPU-GPU clones for now.
+			// To go the other way, the user expects us to do a peer-to-peer copy,
+			// which we can't do because we don't want to rely on unified addressing
+			// and this class does not keep track of the GPU its data resides on.
+			static_assert(true, "GPU-GPU clones not supported yet.");
 		}
 
 		template<typename callback_function>
