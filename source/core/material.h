@@ -35,6 +35,16 @@ public:
 	CPU material(nbl::hdf5_file const & mat);
 
 	/**
+	 * \brief Constructor. Clone from a different material.
+	 *
+	 * The "source" material may have a different list of scattering types, as
+	 * long as they are convertible. This happens, for example, when cloning
+	 * a CPU material to a GPU.
+	 */
+	template<typename... source_scatter_types>
+	CPU material(material<scatter_list<source_scatter_types...>> const & source);
+
+	/**
 	 * \brief Barrier energy, that is, the work function plus the Fermi energy.
 	 *
 	 * An electron cannot escape the material unless it has more kinetic energy

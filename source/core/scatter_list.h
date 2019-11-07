@@ -24,7 +24,7 @@
  *     Performs the event, if chosen.
  */
 template<typename... scatter_types>
-class scatter_list : nbl::tuple::tuple<scatter_types...>
+class scatter_list : public nbl::tuple::tuple<scatter_types...>
 {
 public:
 	/**

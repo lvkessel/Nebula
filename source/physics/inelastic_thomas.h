@@ -292,6 +292,24 @@ public:
 	}
 
 	/**
+	 * \brief Clone from another instance.
+	 */
+	template<bool source_gpu_flag>
+	static CPU inelastic_thomas create(inelastic_thomas<source_gpu_flag, opt_optical_phonon_loss, opt_generate_secondary, opt_instantaneous_momentum, opt_momentum_conservation> const & source)
+	{
+		inelastic_thomas target;
+
+		target._fermi = source._fermi;
+		target._band_gap = source._band_gap;
+		target._binding = electron_ionisation<gpu_flag>::create(source._binding);
+
+		target._log_imfp_table = util::table_1D<real, gpu_flag>::create(source._log_imfp_table);
+		target._log_icdf_table = util::table_2D<real, gpu_flag>::create(source._log_icdf_table);
+
+		return target;
+	}
+
+	/**
 	 * \brief Dealllocate data held by an instance of this class.
 	 */
 	static CPU void destroy(inelastic_thomas & inel)
@@ -326,6 +344,9 @@ private:
 	real _fermi;    ///< Fermi energy (eV)
 	real _band_gap; ///< Band gap (eV)
 	electron_ionisation<gpu_flag> _binding; ///< Table for inner and outer-shell binding energies
+
+	template<bool, bool, bool, bool, bool>
+	friend class inelastic_thomas;
 };
 
 }} // namespace nbl::scatter

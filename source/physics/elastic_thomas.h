@@ -196,6 +196,23 @@ public:
 	}
 
 	/**
+	 * \brief Clone from another instance.
+	 */
+	template<bool source_gpu_flag>
+	static CPU elastic_thomas create(elastic_thomas<source_gpu_flag, opt_acoustic_phonon_loss, opt_atomic_recoil_loss> const & source)
+	{
+		elastic_thomas target;
+
+		target._phonon_loss = source._phonon_loss;
+		target._recoil_const = source._recoil_const;
+
+		target._log_imfp_table = util::table_1D<real, gpu_flag>::create(source._log_imfp_table);
+		target._icdf_table = util::table_2D<real, gpu_flag>::create(source._icdf_table);
+
+		return target;
+	}
+
+	/**
 	 * \brief Dealllocate data held by an instance of this class.
 	 */
 	static CPU void destroy(elastic_thomas & el)
@@ -227,6 +244,9 @@ private:
 
 	real _phonon_loss;  ///< Amount of energy lost in a phonon event (eV)
 	real _recoil_const; ///< Amount of energy lost in a Mott event (eV)
+
+	template<bool, bool, bool>
+	friend class elastic_thomas;
 };
 
 }} // namespace nbl::scatter

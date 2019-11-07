@@ -402,6 +402,25 @@ public:
 	}
 
 	/**
+	 * \brief Clone from another instance.
+	 */
+	template<bool source_gpu_flag>
+	static CPU inelastic_penn create(inelastic_penn<source_gpu_flag, opt_optical_phonon_loss, opt_generate_secondary, opt_instantaneous_momentum, opt_momentum_conservation> const & source)
+	{
+		inelastic_penn target;
+
+		target._fermi = source._fermi;
+		target._band_gap = source._band_gap;
+
+		target._log_imfp_table = util::table_1D<real, gpu_flag>::create(source._log_imfp_table);
+		target._log_omega_icdf_table = util::table_2D<real, gpu_flag>::create(source._log_omega_icdf_table);
+		target._q_icdf_table = util::table_3D<real, gpu_flag>::create(source._q_icdf_table);
+		target._ionisation_table = util::table_2D<real, gpu_flag>::create(source._ionisation_table);
+
+		return target;
+	}
+
+	/**
 	 * \brief Dealllocate data held by an instance of this class.
 	 */
 	static CPU void destroy(inelastic_penn & inel)
@@ -461,6 +480,9 @@ private:
 
 	real _fermi;    ///< Fermi energy (eV)
 	real _band_gap; ///< Band gap (eV) (no band gap is denoted by -1)
+
+	template<bool, bool, bool, bool, bool>
+	friend class inelastic_penn;
 };
 
 }} // namespace nbl::scatter

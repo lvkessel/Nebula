@@ -123,6 +123,14 @@ public:
 		return ei;
 	}
 
+	template<bool source_gpu_flag>
+	static CPU electron_ionisation create(electron_ionisation<source_gpu_flag> const & source)
+	{
+		electron_ionisation target;
+		target._ionisation_table = util::table_2D<real, gpu_flag>::create(source._ionisation_table);
+		return target;
+	}
+
 	static CPU void destroy(electron_ionisation & ei)
 	{
 		util::table_2D<real, gpu_flag>::destroy(ei._ionisation_table);
@@ -140,6 +148,9 @@ private:
 	 * Be sure to use .get_rounddown() for non-interpolated values
 	 */
 	util::table_2D<real, gpu_flag> _ionisation_table;
+
+	template<bool>
+	friend class electron_ionisation;
 };
 
 }} // namespace nbl::scatter
