@@ -71,39 +71,49 @@ public:
 
 	static CPU electron_ionisation create(hdf5_file const & mat)
 	{
-		util::geomspace<units::quantity<double>> K_range(K_min*units::eV, K_max*units::eV, K_cnt);
-		util::linspace<units::quantity<double>> P_range(0*units::dimensionless, 1*units::dimensionless, P_cnt);
-
 		electron_ionisation ei;
-		ei._ionisation_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
+
+		ei._ionisation_table = mat.fill_table2D<real>("ionization/binding_icdf");
+		auto K_range = mat.get_log_dimscale("ionization/binding_icdf", 0,
+			ei._ionisation_table.width());
+		auto P_range = mat.get_lin_dimscale("ionization/binding_icdf", 1,
+			ei._ionisation_table.height());
+		ei._ionisation_table.set_scale(
+			std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
+			P_range.front(), P_range.back());
 		ei._ionisation_table.mem_scope([&](real** ionisation_vector)
 		{
-			const auto icdf_table = mat.get_table_axes<2>("ionization/binding_icdf");
-
 			// Get outer_shells vector, containing outer-shell energies sorted from low to high.
-			const auto outer_shell_table = mat.get_table_axes<1>("ionization/outer_shells");
 			std::vector<units::quantity<double>> outer_shells;
-			for (double osi : outer_shell_table)
 			{
-				const units::quantity<double> value = osi * outer_shell_table.unit;
-				if (value < 100*units::eV)
-					outer_shells.push_back(value);
+				const auto outer_shell_table = mat.fill_table1D<double>("ionization/outer_shells");
+				const auto unit = mat.get_unit("ionization/outer_shells");
+				for (int i = 0; i < outer_shell_table.width(); ++i)
+				{
+					const units::quantity<double> value = outer_shell_table(i) * unit;
+					if (value < 100*units::eV)
+						outer_shells.push_back(value);
+				}
+				std::sort(outer_shells.begin(), outer_shells.end());
 			}
-			std::sort(outer_shells.begin(), outer_shells.end());
 
 			// Create the simulation table
-			for (int y = 0; y < P_cnt; ++y)
+			const auto unit = mat.get_unit("ionization/binding_icdf");
+			for (int x = 0; x < K_range.size(); ++x)
 			{
-				const units::quantity<double> P = P_range[y];
-				for (int x = 0; x < K_cnt; ++x)
+				auto K = K_range[x];
+				for (int y = 0; y < P_range.size(); ++y)
 				{
-					const units::quantity<double> K = K_range[x];
-					const units::quantity<double> margin = 10 * units::eV; // Magic KB number
+					const real P = P_range[y];
+
+					// Magic KB number
+					const units::quantity<double> margin = 10 * units::eV;
 
 					units::quantity<double> binding = -1 * units::eV;
 					if (K > 100*units::eV)
 					{
-						binding = icdf_table.get_rounddown(K + margin, P);
+						binding = ei._ionisation_table.get_rounddown(
+							std::log((K+margin)/units::eV), P) * units::eV;
 						if (binding < 50*units::eV || !std::isfinite(binding.value))
 							binding = -1 * units::eV;
 					}
@@ -113,13 +123,14 @@ public:
 						auto outer_shell_iterator = std::lower_bound(outer_shells.rbegin(),
 							outer_shells.rend(), K, std::greater<units::quantity<double>>{});
 						if (outer_shell_iterator != outer_shells.rend())
-							binding = (*outer_shell_iterator);
+							binding = *outer_shell_iterator;
 					}
 
 					ionisation_vector[x][y] = real(binding / units::eV);
 				}
 			}
 		});
+
 		return ei;
 	}
 

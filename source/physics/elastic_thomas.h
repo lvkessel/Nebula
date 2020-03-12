@@ -157,35 +157,39 @@ public:
 	 */
 	static CPU elastic_thomas create(hdf5_file const & mat)
 	{
-		util::geomspace<units::quantity<double>> K_range(K_min*units::eV, K_max*units::eV, K_cnt);
-		util::linspace<units::quantity<double>> P_range(0*units::dimensionless, 1*units::dimensionless, P_cnt);
-
 		elastic_thomas el;
 
-		el._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
-		el._log_imfp_table.mem_scope([&](real* imfp_vector)
 		{
-			auto elastic_imfp = mat.get_table_axes<1>("elastic/imfp");
-			for (int x = 0; x < K_cnt; ++x)
+			el._log_imfp_table = mat.fill_table1D<real>("elastic/imfp");
+			auto K_range = mat.get_log_dimscale("elastic/imfp", 0, el._log_imfp_table.width());
+			el._log_imfp_table.set_scale(
+				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV));
+			el._log_imfp_table.mem_scope([&](real* imfp_vector)
 			{
-				imfp_vector[x] = (real)std::log(elastic_imfp.get_loglog(K_range[x]) * units::nm);
-			}
-		});
-
-		el._icdf_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
-		el._icdf_table.mem_scope([&](real** icdf_vector)
-		{
-			auto elastic_icdf = mat.get_table_axes<2>("elastic/costheta_icdf");
-			for (int y = 0; y < P_cnt; ++y)
-			{
-				const auto P = P_range[y];
-				for (int x = 0; x < K_cnt; ++x)
+				const real unit = mat.get_unit("elastic/imfp") * units::nm;
+				for (int x = 0; x < K_range.size(); ++x)
 				{
-					// TODO: support creation of dimensionless quantities from scalars
-					icdf_vector[x][y] = (real)std::max(-1.0, std::min<double>(1.0, elastic_icdf.get_linear(K_range[x], P)));
+					imfp_vector[x] = std::log(imfp_vector[x] * unit);
 				}
-			}
-		});
+			});
+		}
+
+		{
+			el._icdf_table = mat.fill_table2D<real>("elastic/costheta_icdf");
+			auto K_range = mat.get_log_dimscale("elastic/costheta_icdf", 0, el._icdf_table.width());
+			auto P_range = mat.get_lin_dimscale("elastic/costheta_icdf", 1, el._icdf_table.height());
+			el._icdf_table.set_scale(
+				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
+				P_range.front(), P_range.back());
+			el._icdf_table.mem_scope([&](real** icdf_vector)
+			{
+				for (int x = 0; x < K_range.size(); ++x)
+				for (int y = 0; y < P_range.size(); ++y)
+				{
+					icdf_vector[x][y] = std::max(-1._r, std::min(1._r, icdf_vector[x][y]));
+				}
+			});
+		}
 
 		el._phonon_loss = static_cast<real>(mat.get_property_quantity("phonon_loss") / units::eV);
 		el._recoil_const = 2 * static_cast<real>(
