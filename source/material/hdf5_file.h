@@ -4,9 +4,10 @@
 #include <string>
 #include <hdf5.h>
 #include "../common/units/unit_system.h"
-#include "../common/nd_array/nd_array.h"
-#include "../common/nd_array/nd_array_ax.h"
-#include "../common/nd_array/ax_list.h"
+#include "../common/util/range.h"
+#include "../common/util/table_1D.h"
+#include "../common/util/table_2D.h"
+#include "../common/util/table_3D.h"
 
 namespace nbl {
 
@@ -18,24 +19,14 @@ namespace nbl {
  *     Stored using the HDF5 attribute system, these can either be text or a
  *     number + unit.
  *   - N-dimensional data sets, with axis data stored using the HDF5 dimension
- *     scale API. The data set and axes may have a "unit" attribute. Such data
- *     is returned as an ::nbl::nd_array::nd_array_ax <double, ...>, where `...`
- *     is `N` times ::nbl::nd_array::ax_list as axes.
+ *     scale API. The data set and axes may have a "unit" attribute. The data
+ *     is returned as an ::nbl::util::table_1D, or its 2D or 3D equivalents.
+ *     The dimension scales and the unit attribute must be read using separate
+ *     functions in this class.
  */
 class hdf5_file
 {
 public:
-	template<typename... axes>
-	using nd_array_double = nd_array::nd_array_ax<double, axes...>;
-	/**
-	 * \brief The `N`-dimensional array dataype that can be read from a HDF5 file.
-	 *
-	 * Explicitly, this is `nd_array_ax<double, ax_list<double>, ax_list<double>, ...>`
-	 */
-	template<size_t N>
-	using hdf5_table = repeat<nd_array::ax_list<double>, N, nd_array_double>;
-
-
 	/**
 	 * \brief Constructor: open a file for reading
 	 */
@@ -83,20 +74,91 @@ public:
 		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
 
 	/**
-	 * \brief Get an N-dimensional dataset, with units and axis information.
+	 * \brief Fill a 1D table with data.
 	 *
-	 * If axis information is not given in the file, it is a dimensionless
-	 * linear axis from 0 to 1 (inclusive).
+	 * This function does not take care of the units of the data stored, and it
+	 * does not set the min and max values correctly! These things must be done
+	 * by the user, using get_unit(), get_lin_dimscale() and get_log_dimscale().
 	 *
-	 * Throws `std::runtime_error` if the table is not found or if its dimension
-	 * in the file is not equal to `N`.
-	 *
-	 * \tparam N      Number of dimensions expected
-	 * \param  name   Name of the dataset
-	 * \param  parser Class used to parse the quantity's units
+	 * \tparam T            Desired data type
+	 * \param  dataset_name Name of the dataset
 	 */
-	template<size_t N>
-	hdf5_table<N> get_table_axes(std::string const & name,
+	template<typename T>
+	util::table_1D<T, false> fill_table1D(std::string const & dataset_name) const;
+
+	/**
+	 * \brief Fill a 2D table with data.
+	 *
+	 * This function does not take care of the units of the data stored, and it
+	 * does not set the min and max values correctly! These things must be done
+	 * by the user, using get_unit(), get_lin_dimscale() and get_log_dimscale().
+	 *
+	 * \tparam T            Desired data type
+	 * \param  dataset_name Name of the dataset
+	 */
+	template<typename T>
+	util::table_2D<T, false> fill_table2D(std::string const & dataset_name) const;
+
+	/**
+	 * \brief Fill a 3D table with data.
+	 *
+	 * This function does not take care of the units of the data stored, and it
+	 * does not set the min and max values correctly! These things must be done
+	 * by the user, using get_unit(), get_lin_dimscale() and get_log_dimscale().
+	 *
+	 * \tparam T            Desired data type
+	 * \param  dataset_name Name of the dataset
+	 */
+	template<typename T>
+	util::table_3D<T, false> fill_table3D(std::string const & dataset_name) const;
+
+	/**
+	 * \brief Get a linearly spaced dimension scale.
+	 *
+	 * This function should be used when you expect the file to contain a linearly
+	 * spaced dimension scale. This function reads it, checks that it is linear,
+	 * and returns a ::nbl::util::linspace.
+	 *
+	 * \param dataset_name Name of the dataset
+	 * \param dim          Index of the dimension of interest, starting at 0
+	 * \param N_expected   Expected number of entries in the dimension scale.
+	 *                     This should be equal to the width/height/depth of the
+	 *                     associated table_xD.
+	 * \param parser       Class used to parse the dimension scale's units
+	 */
+	util::linspace<units::quantity<double>> get_lin_dimscale(
+		std::string const & dataset_name,
+		int dim,
+		int N_expected,
+		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
+
+	/**
+	 * \brief Get a logarithmically spaced dimension scale.
+	 *
+	 * This function should be used when you expect the file to contain a
+	 * logarithmically spaced dimension scale. This function reads it, checks
+	 * that it is logarithmic, and returns a ::nbl::util::geomspace.
+	 *
+	 * \param dataset_name Name of the dataset
+	 * \param dim          Index of the dimension of interest, starting at 0
+	 * \param N_expected   Expected number of entries in the dimension scale.
+	 *                     This should be equal to the width/height/depth of the
+	 *                     associated table_xD.
+	 * \param parser       Class used to parse the dimension scale's units
+	 */
+	util::geomspace<units::quantity<double>> get_log_dimscale(
+		std::string const & dataset_name,
+		int dim,
+		int N_expected,
+		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
+
+	/**
+	 * \brief Get the unit associated with a dataset.
+	 *
+	 * \param dataset_name Name of the dataset
+	 * \param parser       Class used to parse the unit
+	 */
+	units::quantity<double> get_unit(std::string const & dataset_name,
 		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
 
 private:

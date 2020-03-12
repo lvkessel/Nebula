@@ -248,45 +248,54 @@ public:
 	 */
 	static CPU inelastic_thomas create(hdf5_file const & mat)
 	{
-		util::geomspace<units::quantity<double>> K_range(K_min*units::eV, K_max*units::eV, K_cnt);
-		util::linspace<units::quantity<double>> P_range(0*units::dimensionless, 1*units::dimensionless, P_cnt);
-
 		inelastic_thomas inel;
 
 		inel._fermi = static_cast<real>(mat.get_property_quantity("fermi") / units::eV);
 		inel._band_gap = static_cast<real>(mat.get_property_quantity("band_gap", -1*units::eV) / units::eV);
 		inel._binding = electron_ionisation<gpu_flag>::create(mat);
 
-		inel._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
-		inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 		{
-			auto inelastic_imfp = mat.get_table_axes<1>("inelastic_kieft/imfp");
-			for (int x = 0; x < K_cnt; ++x)
+			inel._log_imfp_table = mat.fill_table1D<real>("inelastic_kieft/imfp");
+			auto K_range = mat.get_log_dimscale("inelastic_kieft/imfp", 0,
+				inel._log_imfp_table.width());
+			inel._log_imfp_table.set_scale(
+				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV));
+			inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 			{
-				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(K_range[x]) * units::nm);
-			}
-		});
-
-		inel._log_icdf_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
-		inel._log_icdf_table.mem_scope([&](real** icdf_vector)
-		{
-			auto fermi = mat.get_property_quantity("fermi");
-			auto inelastic_icdf = mat.get_table_axes<2>("inelastic_kieft/w0_icdf");
-			for (int y = 0; y < P_cnt; ++y)
-			{
-				const units::quantity<double> P = P_range[y];
-				for (int x = 0; x < K_cnt; ++x)
+				const real unit = mat.get_unit("inelastic_kieft/imfp") * units::nm;
+				for (int x = 0; x < K_range.size(); ++x)
 				{
-					units::quantity<double> K = K_range[x];
-
-					// TODO: support creation of dimensionless quantities from scalars
-					icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min<double>(
-						(K - fermi) / units::eV,
-						inelastic_icdf.get_linear(K, P) / units::eV
-					)));
+					imfp_vector[x] = std::log(imfp_vector[x] * unit);
 				}
-			}
-		});
+			});
+		}
+
+		{
+			inel._log_icdf_table = mat.fill_table2D<real>("inelastic_kieft/w0_icdf");
+			auto K_range = mat.get_log_dimscale("inelastic_kieft/w0_icdf", 0,
+				inel._log_icdf_table.width());
+			auto P_range = mat.get_lin_dimscale("inelastic_kieft/w0_icdf", 1,
+				inel._log_icdf_table.height());
+			inel._log_icdf_table.set_scale(
+				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
+				P_range.front(), P_range.back());
+			inel._log_icdf_table.mem_scope([&](real** icdf_vector)
+			{
+				const real unit = mat.get_unit("full_penn/omega_icdf") / units::eV;
+				const auto fermi = mat.get_property_quantity("fermi");
+				for (int x = 0; x < K_range.size(); ++x)
+				{
+					auto K = K_range[x];
+					for (int y = 0; y < P_range.size(); ++y)
+					{
+						icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min<double>(
+							(K - fermi) / units::eV,
+							icdf_vector[x][y] * unit
+						)));
+					}
+				}
+			});
+		}
 
 		return inel;
 	}

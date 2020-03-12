@@ -313,98 +313,110 @@ public:
 	 */
 	static CPU inelastic_penn create(hdf5_file const & mat)
 	{
-		util::geomspace<units::quantity<double>> K_range(K_min*units::eV, K_max*units::eV, K_cnt);
-		util::linspace<units::quantity<double>> P_range(0*units::dimensionless, 1*units::dimensionless, P_cnt);
-
 		inelastic_penn inel;
 
 		inel._fermi = static_cast<real>(mat.get_property_quantity("fermi") / units::eV);
 		inel._band_gap = static_cast<real>(mat.get_property_quantity("band_gap", -1*units::eV) / units::eV);
 
-		inel._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
-		inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 		{
-			auto inelastic_imfp = mat.get_table_axes<1>("full_penn/imfp");
-			for (int x = 0; x < K_cnt; ++x)
+			inel._log_imfp_table = mat.fill_table1D<real>("full_penn/imfp");
+			auto K_range = mat.get_log_dimscale("full_penn/imfp", 0, inel._log_imfp_table.width());
+			inel._log_imfp_table.set_scale(
+				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV));
+			inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 			{
-				imfp_vector[x] = (real)std::log(inelastic_imfp.get_loglog(K_range[x]) * units::nm);
-			}
-		});
-
-		inel._log_omega_icdf_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
-		inel._log_omega_icdf_table.mem_scope([&](real** icdf_vector)
-		{
-			auto fermi = mat.get_property_quantity("fermi");
-			auto inelastic_icdf = mat.get_table_axes<2>("full_penn/omega_icdf");
-			for (int y = 0; y < P_cnt; ++y)
-			{
-				const units::quantity<double> P = P_range[y];
-				for (int x = 0; x < K_cnt; ++x)
+				const real unit = mat.get_unit("full_penn/imfp") * units::nm;
+				for (int x = 0; x < K_range.size(); ++x)
 				{
-					const units::quantity<double> K = K_range[x];
-
-					icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min<double>(
-						(K - fermi) / units::eV,
-						inelastic_icdf.get_linear(K, P) / units::eV
-					)));
+					imfp_vector[x] = std::log(imfp_vector[x] * unit);
 				}
-			}
-		});
+			});
+		}
 
-
-		util::geomspace<units::quantity<double>> K512_range(K_min*units::eV, K_max*units::eV, 512);
-		util::linspace<units::quantity<double>> P512_range(0*units::dimensionless, 1*units::dimensionless, 512);
-		inel._q_icdf_table = util::table_3D<real, gpu_flag>::create(logr(K_min), logr(K_max), 512, 0, 1, 512, 0, 1, 512);
-		inel._q_icdf_table.mem_scope([&](real*** icdf_vector)
 		{
-			auto inelastic_icdf = mat.get_table_axes<3>("full_penn/q_icdf");
-			for (int z = 0; z < 512; ++z)
+			inel._log_omega_icdf_table = mat.fill_table2D<real>("full_penn/omega_icdf");
+			auto K_range = mat.get_log_dimscale("full_penn/omega_icdf", 0,
+				inel._log_omega_icdf_table.width());
+			auto P_range = mat.get_lin_dimscale("full_penn/omega_icdf", 1,
+				inel._log_omega_icdf_table.height());
+			inel._log_omega_icdf_table.set_scale(
+				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
+				P_range.front(), P_range.back());
+			inel._log_omega_icdf_table.mem_scope([&](real** icdf_vector)
 			{
-				const units::quantity<double> P = P512_range[z];
-				for (int y = 0; y < 512; ++y)
+				const real unit = mat.get_unit("full_penn/omega_icdf") / units::eV;
+				const auto fermi = mat.get_property_quantity("fermi");
+				for (int x = 0; x < K_range.size(); ++x)
 				{
-					const units::quantity<double> Q = P512_range[y];
-					for (int x = 0; x < 512; ++x)
+					auto K = K_range[x];
+					for (int y = 0; y < P_range.size(); ++y)
 					{
-						units::quantity<double> K = K512_range[x];
-
-						// hbar / sqrt(2*electron mass) == 0.19519 nm eV^1/2
-						icdf_vector[x][y][z] = static_cast<real>(0.19519 *
-							inelastic_icdf.get_linear(K, Q, P) * units::nm);
+						icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min<double>(
+							(K - fermi) / units::eV,
+							icdf_vector[x][y] * unit
+						)));
 					}
 				}
-			}
-		});
+			});
+		}
 
-
-		inel._ionisation_table = util::table_3D<real, gpu_flag>::create(logr(K_min), logr(K_max), 128, logr(1e-4), logr(1), 1024, 0, 1, 1024);
-		util::geomspace<units::quantity<double>> kk_range(K_min*units::eV, K_max*units::eV, 128);
-		util::geomspace<units::quantity<double>> omega_range(1e-4*units::dimensionless, 1*units::dimensionless, 1024);
-		util::linspace<units::quantity<double>> pp_range(0*units::dimensionless, 1*units::dimensionless, 1024);
-		inel._ionisation_table.mem_scope([&](real*** ionisation_vector)
 		{
-			const auto icdf_table = mat.get_table_axes<3>("ionization/binding_icdf");
-
-			// Create the simulation table
-			for (int z = 0; z < 1024; ++z)
+			inel._q_icdf_table = mat.fill_table3D<real>("full_penn/q_icdf");
+			auto K_range = mat.get_log_dimscale("full_penn/q_icdf", 0,
+				inel._q_icdf_table.width());
+			auto w_range = mat.get_lin_dimscale("full_penn/q_icdf", 1,
+				inel._q_icdf_table.height());
+			auto P_range = mat.get_lin_dimscale("full_penn/q_icdf", 2,
+				inel._q_icdf_table.depth());
+			inel._q_icdf_table.set_scale(
+				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
+				w_range.front(), w_range.back(),
+				P_range.front(), P_range.back());
+			inel._q_icdf_table.mem_scope([&](real*** icdf_vector)
 			{
-				const units::quantity<double> P = pp_range[z];
-				for (int y = 0; y < 1024; ++y)
+				const real unit = mat.get_unit("full_penn/q_icdf") * 0.19519 * units::nm;
+				for (int x = 0; x < K_range.size(); ++x)
+				for (int y = 0; y < w_range.size(); ++y)
+				for (int z = 0; z < P_range.size(); ++z)
 				{
-					const units::quantity<double> omega = omega_range[y];
-					for (int x = 0; x < 128; ++x)
+					// hbar / sqrt(2*electron mass) == 0.19519 nm eV^1/2
+					icdf_vector[x][y][z] = icdf_vector[x][y][z] * unit;
+				}
+			});
+		}
+
+
+		{
+			inel._ionisation_table = mat.fill_table3D<real>("ionization/binding_icdf");
+			auto K_range = mat.get_log_dimscale("ionization/binding_icdf", 0,
+				inel._ionisation_table.width());
+			auto omega_range = mat.get_log_dimscale("ionization/binding_icdf", 1,
+				inel._ionisation_table.height());
+			auto P_range = mat.get_lin_dimscale("ionization/binding_icdf", 2,
+				inel._ionisation_table.depth());
+			inel._ionisation_table.set_scale(
+				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
+				std::log(omega_range.front()), std::log(omega_range.back()),
+				P_range.front(), P_range.back());
+			inel._ionisation_table.mem_scope([&](real*** icdf_vector)
+			{
+				const real unit = mat.get_unit("ionization/binding_icdf") / units::eV;
+				for (int x = 0; x < K_range.size(); ++x)
+				{
+					for (int y = 0; y < omega_range.size(); ++y)
 					{
-						const units::quantity<double> K = kk_range[x];
+						for (int z = 0; z < P_range.size(); ++z)
+						{
+							real binding = icdf_vector[x][y][z] * unit;
+							if (binding < 50 || !std::isfinite(binding))
+								binding = -1;
 
-						units::quantity<double> binding = icdf_table.get_rounddown(K, omega, P);
-						if (binding < 50 * units::eV || !std::isfinite(binding.value))
-							binding = -1 * units::eV;
-
-						ionisation_vector[x][y][z] = real(binding / units::eV);
+							icdf_vector[x][y][z] = binding;
+						}
 					}
 				}
-			}
-		});
+			});
+		}
 
 		return inel;
 	}
@@ -469,7 +481,7 @@ private:
 	 * Specifically, stores `hbar*q/sqrt(2m) / eV^1/2` as function of
 	 *   - x axis: `log(kinetic energy / eV)`
 	 *   - y axis: omega / kinetic energy (between 0 and 1)
-	 *   - y axis: cumulative probability (between 0 and 1)
+	 *   - z axis: cumulative probability (between 0 and 1)
 	 */
 	util::table_3D<real, gpu_flag> _q_icdf_table;
 
