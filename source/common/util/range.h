@@ -75,7 +75,7 @@ public:
 	using size_type = std::size_t;              ///< Indexing type
 	using difference_type = std::ptrdiff_t;     ///< Difference type
 	using iterator = const_iterator_impl;       ///< Random access iterator
-	using const_iterator = const_iterator_impl; ///< constant iterator
+	using const_iterator = const_iterator_impl; ///< Constant iterator
 	// using reverse_iterator =
 	// using const_reverse_iterator =
 
@@ -171,6 +171,17 @@ public:
 		base_t(stop>0 ? stop : -stop)
 	{}
 
+	/// Read-only access first value
+	value_type front() const
+	{
+		return first;
+	}
+	/// Read-only access last value
+	value_type back() const
+	{
+		return (*this)[base_t::count-1];
+	}
+
 	/// Random access to value
 	value_type operator[](size_type index) const
 	{
@@ -220,6 +231,17 @@ public:
 		base_t(num)
 	{}
 
+	/// Read-only access first value
+	value_type front() const
+	{
+		return first;
+	}
+	/// Read-only access last value
+	value_type back() const
+	{
+		return (*this)[base_t::count-1];
+	}
+
 	/// Random access to value
 	value_type operator[](size_type index) const
 	{
@@ -268,6 +290,17 @@ public:
 		step(std::log(stop/start) / (num - 1)),
 		base_t(num)
 	{}
+
+	/// Read-only access first value
+	value_type front() const
+	{
+		return first;
+	}
+	/// Read-only access last value
+	value_type back() const
+	{
+		return (*this)[base_t::count-1];
+	}
 
 	/// Random access to value
 	value_type operator[](size_type index) const
