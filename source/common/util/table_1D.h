@@ -102,6 +102,26 @@ public:
 	 */
 	inline PHYSICS T get(real x) const;
 
+	/**
+	 * \brief Get the width (size) of this table.
+	 */
+	inline PHYSICS size_t width() const;
+
+	/**
+	 * \brief Set the scale, that is, the "x range" of the data.
+	 *
+	 * The data itself is preserved.
+	 */
+	inline CPU void set_scale(real x_min, real x_max);
+
+	/**
+	 * \brief Get write access to the underlying data array.
+	 *
+	 * This is only possible if \p gpu_flag is false.
+	 */
+	template<bool gpu2=gpu_flag>
+	inline CPU typename std::enable_if<!gpu2, T*>::type data();
+
 private:
 	T* _data = nullptr;
 
