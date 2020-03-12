@@ -133,6 +133,35 @@ public:
 	 */
 	inline PHYSICS T get_nearest(real x, real y) const;
 
+	/**
+	 * \brief Get the width of this table.
+	 */
+	inline PHYSICS size_t width() const;
+
+	/**
+	 * \brief Get the height of this table.
+	 */
+	inline PHYSICS size_t height() const;
+
+	/**
+	 * \Brief Set the scale.
+	 *
+	 * The data itself is preserved.
+	 */
+	inline CPU void set_scale(
+		   real x_min, real x_max,
+		   real y_min, real y_max);
+
+	/**
+	 * \brief Get write access to the underlying data array.
+	 *
+	 * This is only possible if \p gpu_flag is false.
+	 * The underlying data array is stored in C order, that is, the fastest
+	 * changing index is the last one (running from 0 to height).
+	 */
+	template<bool gpu2=gpu_flag>
+	inline CPU typename std::enable_if<!gpu2, T*>::type data();
+
 private:
 	T* _data = nullptr;
 	size_t _pitch = 0;

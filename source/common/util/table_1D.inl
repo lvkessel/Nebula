@@ -80,6 +80,26 @@ Original implementation does not handle infinities correctly.
 */
 }
 
+template<typename T, bool gpu_flag>
+PHYSICS size_t table_1D<T, gpu_flag>::width() const
+{
+	return _n;
+}
+
+template<typename T, bool gpu_flag>
+CPU void table_1D<T, gpu_flag>::set_scale(real x_min, real x_max)
+{
+	_x_min = x_min;
+	_x_step = (_n - 1) / (x_max - x_min);
+}
+
+template<typename T, bool gpu_flag>
+template<bool gpu2>
+CPU typename std::enable_if<!gpu2, T*>::type table_1D<T, gpu_flag>::data()
+{
+	return _data;
+}
+
 namespace detail
 {
 	template<typename T>

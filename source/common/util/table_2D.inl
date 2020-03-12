@@ -113,6 +113,36 @@ PHYSICS T table_2D<T, gpu_flag>::get_nearest(real x, real y) const
 	return (*this)(near_x, near_y);
 }
 
+template<typename T, bool gpu_flag>
+PHYSICS size_t table_2D<T, gpu_flag>::width() const
+{
+	return _width;
+}
+
+template<typename T, bool gpu_flag>
+PHYSICS size_t table_2D<T, gpu_flag>::height() const
+{
+	return _height;
+}
+
+template<typename T, bool gpu_flag>
+CPU void table_2D<T, gpu_flag>::set_scale(
+      real x_min, real x_max,
+      real y_min, real y_max)
+{
+	_x_min = x_min;
+	_x_step = (_width - 1) / (x_max - x_min);
+	_y_min = y_min;
+	_y_step = (_height - 1) / (y_max - y_min);
+}
+
+template<typename T, bool gpu_flag>
+template<bool gpu2>
+CPU typename std::enable_if<!gpu2, T*>::type table_2D<T, gpu_flag>::data()
+{
+	return _data;
+}
+
 namespace detail
 {
 	template<typename T>

@@ -133,6 +133,45 @@ PHYSICS T table_3D<T, gpu_flag>::get_nearest(real x, real y, real z) const
 	return (*this)(near_x, near_y, near_z);
 }
 
+template<typename T, bool gpu_flag>
+PHYSICS size_t table_3D<T, gpu_flag>::width() const
+{
+	return _width;
+}
+
+template<typename T, bool gpu_flag>
+PHYSICS size_t table_3D<T, gpu_flag>::height() const
+{
+	return _height;
+}
+
+template<typename T, bool gpu_flag>
+PHYSICS size_t table_3D<T, gpu_flag>::depth() const
+{
+	return _depth;
+}
+
+template<typename T, bool gpu_flag>
+CPU void table_3D<T, gpu_flag>::set_scale(
+      real x_min, real x_max,
+      real y_min, real y_max,
+      real z_min, real z_max)
+{
+	_x_min = x_min;
+	_x_step = (_width - 1) / (x_max - x_min);
+	_y_min = y_min;
+	_y_step = (_height - 1) / (y_max - y_min);
+	_z_min = z_min;
+	_z_step = (_depth - 1) / (z_max - z_min);
+}
+
+template<typename T, bool gpu_flag>
+template<bool gpu2>
+CPU typename std::enable_if<!gpu2, T*>::type table_3D<T, gpu_flag>::data()
+{
+	return _data;
+}
+
 namespace detail
 {
 	template<typename T>
