@@ -40,7 +40,7 @@ CPU void cuda_new(T** destination, size_t N)
 template<typename T>
 CPU void cuda_new_2D(T** destination, size_t* pitch, size_t width, size_t height)
 {
-	cudaError_t cudaStatus = cudaMallocPitch(destination, pitch, width*sizeof(T), height);
+	cudaError_t cudaStatus = cudaMallocPitch(destination, pitch, height*sizeof(T), width);
 	if (cudaStatus != cudaSuccess)
 	{
 		throw std::bad_alloc();
@@ -62,7 +62,7 @@ CPU void cuda_new_2D(T** destination, size_t* pitch, size_t width, size_t height
 template<typename T>
 CPU void cuda_new_3D(T** destination, size_t* pitch, size_t width, size_t height, size_t depth)
 {
-	cudaError_t cudaStatus = cudaMallocPitch(destination, pitch, width*sizeof(T), height*depth);
+	cudaError_t cudaStatus = cudaMallocPitch(destination, pitch, depth*sizeof(T), height*width);
 	if (cudaStatus != cudaSuccess)
 	{
 		throw std::bad_alloc();

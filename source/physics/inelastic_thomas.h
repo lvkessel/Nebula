@@ -232,7 +232,7 @@ public:
 				{
 					const double K = K_range[x]*constant::ec; // in Joules
 
-					icdf_vector[y][x] = (real)std::log(std::max(0.0, std::min(
+					icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min(
 						(K - mat.fermi()) / constant::ec,
 						mat.inelastic_icdf(K, P) / constant::ec
 					)));
@@ -280,7 +280,7 @@ public:
 					units::quantity<double> K = K_range[x];
 
 					// TODO: support creation of dimensionless quantities from scalars
-					icdf_vector[y][x] = (real)std::log(std::max(0.0, std::min<double>(
+					icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min<double>(
 						(K - fermi) / units::eV,
 						inelastic_icdf.get_linear(K, P) / units::eV
 					)));

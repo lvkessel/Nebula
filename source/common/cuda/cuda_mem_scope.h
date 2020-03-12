@@ -25,8 +25,8 @@ CPU void cuda_mem_scope(T* dev_p, size_t N, callback_func callback)
 		return;
 
 	// Copy to host.
-	// Use malloc, not new, to avoid calling constructors.
-	T* host_p = reinterpret_cast<T*>(malloc(N * sizeof(T)));
+	T* host_p;
+	cudaMallocHost(&host_p, N * sizeof(T));
 	cudaMemcpy(host_p, dev_p, N * sizeof(T), cudaMemcpyDeviceToHost);
 
 	// Callback
@@ -34,7 +34,7 @@ CPU void cuda_mem_scope(T* dev_p, size_t N, callback_func callback)
 
 	// Copy back to device
 	cudaMemcpy(dev_p, host_p, N * sizeof(T), cudaMemcpyHostToDevice);
-	free(host_p);
+	cudaFreeHost(host_p);
 }
 
 /**
@@ -42,14 +42,14 @@ CPU void cuda_mem_scope(T* dev_p, size_t N, callback_func callback)
  *
  * Similar to ::cuda_mem_scope, only with 2D access.
  * The callback function should have signature `void(T** arr)`; the indexing
- * convention is `arr[y][x]`.
+ * convention is `arr[x][y]`.
  *
  * \param dev_p    Pointer to GPU memory
  * \param pitch    Pitch, in bytes
  * \param width    Width (x size) of the 2D array
  * \param height   Height (y size) of the 2D array
  * \param callback The callback function. Signature should be `void(T** arr)`,
- *                 the indexing convention is `arr[y][x]`.
+ *                 the indexing convention is `arr[x][y]`.
  */
 template<typename T, typename callback_func>
 CPU void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, callback_func callback)
@@ -58,22 +58,23 @@ CPU void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, 
 		return;
 
 	// Copy to host
-	T* host_p = reinterpret_cast<T*>(new uint8_t[pitch * height]);
-	cudaMemcpy(host_p, dev_p, pitch*height, cudaMemcpyDeviceToHost);
+	T* host_p;
+	cudaMallocHost(&host_p, pitch*width);
+	cudaMemcpy(host_p, dev_p, pitch*width, cudaMemcpyDeviceToHost);
 
 	// Make indirect array
-	T** host_pp = new T*[height];
-	for (size_t y = 0; y < height; ++y)
-		host_pp[y] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(host_p) + y*pitch);
+	T** host_pp = new T*[width];
+	for (size_t x = 0; x < width; ++x)
+		host_pp[x] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(host_p) + x*pitch);
 
 	// Callback
 	callback(host_pp);
 
 	// Copy back
-	cudaMemcpy(dev_p, host_p, pitch*height, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_p, host_p, pitch*width, cudaMemcpyHostToDevice);
 
 	delete[] host_pp;
-	delete[] host_p;
+	cudaFreeHost(host_p);
 }
 
 /**
@@ -81,7 +82,7 @@ CPU void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, 
  *
  * Similar to ::cuda_mem_scope, only with 3D access.
  * The callback function should have signature `void(T*** arr)`; the indexing
- * convention is `arr[z][y][x]`.
+ * convention is `arr[x][y][z]`.
  *
  * \param dev_p    Pointer to GPU memory
  * \param pitch    Pitch, in bytes
@@ -89,7 +90,7 @@ CPU void cuda_mem_scope_2D(T* dev_p, size_t pitch, size_t width, size_t height, 
  * \param height   Height (y size) of the 3D array
  * \param depth    Depth (z size) of the 3D array
  * \param callback The callback function. Signature should be `void(T*** arr)`,
- *                 the indexing convention is `arr[z][y][x]`.
+ *                 the indexing convention is `arr[x][y][z]`.
  */
 template<typename T, typename callback_func>
 CPU void cuda_mem_scope_3D(T* dev_p, size_t pitch, size_t width, size_t height, size_t depth, callback_func callback)
@@ -98,26 +99,27 @@ CPU void cuda_mem_scope_3D(T* dev_p, size_t pitch, size_t width, size_t height, 
 		return;
 
 	// Copy to host
-	T* host_p = reinterpret_cast<T*>(new uint8_t[pitch * height * depth]);
-	cudaMemcpy(host_p, dev_p, pitch*height*depth, cudaMemcpyDeviceToHost);
+	T* host_p;
+	cudaMallocHost(&host_p, pitch*height*width);
+	cudaMemcpy(host_p, dev_p, pitch*height*width, cudaMemcpyDeviceToHost);
 
 	// Make indirect arrays
-	T** host_pp = new T*[height*depth];
-	for (size_t y = 0; y < height*depth; ++y)
+	T** host_pp = new T*[height*width];
+	for (size_t y = 0; y < height*width; ++y)
 		host_pp[y] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(host_p) + y*pitch);
-	T*** host_ppp = new T**[depth];
-	for (size_t z = 0; z < depth; ++z)
-		host_ppp[z] = &host_pp[z * height];
+	T*** host_ppp = new T**[width];
+	for (size_t x = 0; x < width; ++x)
+		host_ppp[x] = &host_pp[x * height];
 
 	// Callback
 	callback(host_ppp);
 
 	// Copy back
-	cudaMemcpy(dev_p, host_p, pitch*height*depth, cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_p, host_p, pitch*height*width, cudaMemcpyHostToDevice);
 
 	delete[] host_ppp;
 	delete[] host_pp;
-	delete[] host_p;
+	cudaFreeHost(host_p);
 }
 
 }} // namespace nbl::cuda
