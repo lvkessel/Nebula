@@ -139,7 +139,7 @@ public:
 				{
 					const double K = K_range[x]*constant::ec; // in Joules
 
-					icdf_vector[y][x] = (real)std::cos(std::max(0.0, std::min((double)pi, mat.elastic_icdf(K, P))));
+					icdf_vector[x][y] = (real)std::cos(std::max(0.0, std::min((double)pi, mat.elastic_icdf(K, P))));
 				}
 			}
 		});
@@ -182,7 +182,7 @@ public:
 				for (int x = 0; x < K_cnt; ++x)
 				{
 					// TODO: support creation of dimensionless quantities from scalars
-					icdf_vector[y][x] = (real)std::max(-1.0, std::min<double>(1.0, elastic_icdf.get_linear(K_range[x], P)));
+					icdf_vector[x][y] = (real)std::max(-1.0, std::min<double>(1.0, elastic_icdf.get_linear(K_range[x], P)));
 				}
 			}
 		});

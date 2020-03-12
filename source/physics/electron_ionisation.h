@@ -61,7 +61,7 @@ public:
 							binding = -1;
 					}
 
-					ionisation_vector[y][x] = (real)binding;
+					ionisation_vector[x][y] = (real)binding;
 				}
 			}
 		});
@@ -116,7 +116,7 @@ public:
 							binding = (*outer_shell_iterator);
 					}
 
-					ionisation_vector[y][x] = real(binding / units::eV);
+					ionisation_vector[x][y] = real(binding / units::eV);
 				}
 			}
 		});

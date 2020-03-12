@@ -61,13 +61,13 @@ CPU void table_2D<T, gpu_flag>::set(table_2D<T, other_gpu_flag> const & source)
 template<typename T, bool gpu_flag>
 PHYSICS T & table_2D<T, gpu_flag>::operator()(size_t i, size_t j)
 {
-	return *(reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(_data) + j * _pitch) + i);
+	return *(reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(_data) + i * _pitch) + j);
 }
 
 template<typename T, bool gpu_flag>
 PHYSICS T const & table_2D<T, gpu_flag>::operator()(size_t i, size_t j) const
 {
-	return *(reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(_data) + j * _pitch) + i);
+	return *(reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(_data) + i * _pitch) + j);
 }
 
 template<typename T, bool gpu_flag>
@@ -123,7 +123,7 @@ namespace detail
 			table._width = width;
 			table._height = height;
 			table._data = new T[width * height];
-			table._pitch = width * sizeof(T);
+			table._pitch = height * sizeof(T);
 		}
 
 		inline static CPU void set(table_2D<T, false> & table, T* data)
@@ -141,7 +141,7 @@ namespace detail
 		{
 			cudaMemcpy2D(target._data, target._pitch,
 				source._data, source._pitch,
-				target._width*sizeof(T), target._height,
+				target._height*sizeof(T), target._width,
 				cudaMemcpyDeviceToHost);
 		}
 #endif // CUDA_COMPILER_AVAILABLE
@@ -150,9 +150,9 @@ namespace detail
 		inline static CPU void mem_scope(table_2D<T, false> & table, callback_function callback)
 		{
 			// Make indirect array
-			T** host_pp = new T*[table._height];
-			for (size_t y = 0; y < table._height; ++y)
-				host_pp[y] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(table._data) + y * table._pitch);
+			T** host_pp = new T*[table._width];
+			for (size_t x = 0; x < table._width; ++x)
+				host_pp[x] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(table._data) + x * table._pitch);
 
 			callback(host_pp);
 
@@ -183,15 +183,15 @@ namespace detail
 		inline static CPU void set(table_2D<T, true> & table, T* data)
 		{
 			cudaMemcpy2D(table._data, table._pitch,
-				data, table._width*sizeof(T),
-				table._width*sizeof(T), table._height,
+				data, table._height*sizeof(T),
+				table._height*sizeof(T), table._width,
 				cudaMemcpyHostToDevice);
 		}
 		inline static CPU void set(table_2D<T, true> & target, table_2D<T, false> const & source)
 		{
 			cudaMemcpy2D(target._data, target._pitch,
 				source._data, source._pitch,
-				target._width*sizeof(T), target._height,
+				target._height*sizeof(T), target._width,
 				cudaMemcpyHostToDevice);
 		}
 		inline static CPU void set(table_2D<T, true> & target, table_2D<T, true> const & source)

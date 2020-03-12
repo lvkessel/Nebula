@@ -342,7 +342,7 @@ public:
 				{
 					const units::quantity<double> K = K_range[x];
 
-					icdf_vector[y][x] = (real)std::log(std::max(0.0, std::min<double>(
+					icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min<double>(
 						(K - fermi) / units::eV,
 						inelastic_icdf.get_linear(K, P) / units::eV
 					)));
@@ -368,7 +368,7 @@ public:
 						units::quantity<double> K = K512_range[x];
 
 						// hbar / sqrt(2*electron mass) == 0.19519 nm eV^1/2
-						icdf_vector[z][y][x] = static_cast<real>(0.19519 *
+						icdf_vector[x][y][z] = static_cast<real>(0.19519 *
 							inelastic_icdf.get_linear(K, Q, P) * units::nm);
 					}
 				}
@@ -393,7 +393,7 @@ public:
 					if (binding < 50 * units::eV || !std::isfinite(binding.value))
 						binding = -1 * units::eV;
 
-					ionisation_vector[y][x] = real(binding / units::eV);
+					ionisation_vector[x][y] = real(binding / units::eV);
 				}
 			}
 		});
