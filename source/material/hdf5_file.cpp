@@ -1,6 +1,7 @@
 #include "../config/config.h"
 #include "hdf5_file.h"
 #include <hdf5_hl.h>
+#include <vector>
 
 namespace nbl {
 
