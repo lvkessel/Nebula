@@ -3,7 +3,7 @@
 
 /*
  * A numerical choice for fundamental and derived units.
- * 
+ *
  * TODO: use variable templates here, but VS does not seem to like that yet.
  */
 

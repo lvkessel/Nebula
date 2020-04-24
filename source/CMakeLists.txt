@@ -1,18 +1,14 @@
-add_subdirectory(legacy_thomas)
 add_subdirectory(geometry/octree)
 
 if(CMAKE_CUDA_COMPILER)
-	add_executable(nebula_gpu gpu_main.cu material/hdf5_file.cpp
-		$<TARGET_OBJECTS:legacy_thomas>
+	add_executable(nebula_gpu gpu_main.cu io/hdf5_file.cpp
 		$<TARGET_OBJECTS:octree>)
 	target_link_libraries(nebula_gpu ${LIBRARIES})
 endif()
 
-add_executable(nebula_cpu_mt cpu_mt_main.cpp material/hdf5_file.cpp
-		$<TARGET_OBJECTS:legacy_thomas>
+add_executable(nebula_cpu_mt cpu_mt_main.cpp io/hdf5_file.cpp
 		$<TARGET_OBJECTS:octree>)
-add_executable(nebula_cpu_edep cpu_energydep.cpp material/hdf5_file.cpp
-		$<TARGET_OBJECTS:legacy_thomas>
+add_executable(nebula_cpu_edep cpu_energydep.cpp io/hdf5_file.cpp
 		$<TARGET_OBJECTS:octree>)
 target_link_libraries(nebula_cpu_mt ${LIBRARIES} Threads::Threads)
 target_link_libraries(nebula_cpu_edep ${LIBRARIES} Threads::Threads)

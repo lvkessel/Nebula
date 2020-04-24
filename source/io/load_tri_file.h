@@ -10,7 +10,7 @@
 std::vector<triangle> load_tri_file(std::string const & filename)
 {
 	std::vector<triangle> triangle_vec;
-	
+
 	std::ifstream ifs(filename);
 	if(!ifs.is_open())
 		return triangle_vec;
@@ -57,7 +57,7 @@ std::vector<triangle> load_tri_file(std::string const & filename)
 		triangle_vec.push_back(triangle(A, B, C, in, out));
 	}
 	ifs.close();
-	
+
 	return triangle_vec;
 }
 

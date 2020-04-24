@@ -87,31 +87,6 @@ using make_index_sequence = typename detail::make_index_sequence_impl<N>::type;
 template<size_t I, typename... types>
 using type_at_index = typename detail::type_at_index_impl<I, types...>::type;
 
-
-/**
- * \brief Repeat type `T` `N` times in the template list of type `TT`.
- *
- * Example: `repeat<double, 3, tuple>` is equal to the type
- * `tuple<double, double, double>`.
- */
-template<typename T, size_t N, template<typename...> class TT>
-using repeat = typename detail::repeat<T, TT, make_index_sequence<N>>::type;
-
-
-/**
- * \brief Call constructor, unpacking a `std::tuple` (or `std::array`) for parameters.
- *
- * A bit like `std::apply`, only for constructors, and without perfect forwarding.
- */
-template<typename class_t, typename tuple_t>
-inline constexpr class_t make_from_tuple(tuple_t&& t)
-{
-	return detail::make_from_tuple<class_t>(std::forward<tuple_t>(t),
-		make_index_sequence<
-			std::tuple_size<typename std::remove_reference<tuple_t>::type>::value
-		>());
-}
-
 } // namespace nbl
 
 #endif // __VARIADIC_H_

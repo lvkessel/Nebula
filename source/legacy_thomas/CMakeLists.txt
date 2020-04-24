@@ -1,7 +1,0 @@
-list(APPEND SOURCE_FILES archive.cc)
-list(APPEND SOURCE_FILES material.cc)
-list(APPEND SOURCE_FILES optional.cc)
-list(APPEND SOURCE_FILES polynomial.cc)
-list(APPEND SOURCE_FILES interpolate.cc)
-list(APPEND SOURCE_FILES spline.cc)
-add_library(legacy_thomas OBJECT ${SOURCE_FILES})

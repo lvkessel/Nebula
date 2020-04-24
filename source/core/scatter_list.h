@@ -45,6 +45,24 @@ public:
 	 */
 	static constexpr size_t size() { return sizeof...(scatter_types); }
 
+	/**
+	 * \brief Print information summary
+	 */
+	static void print_info(std::ostream& stream)
+	{
+		(void)std::initializer_list<int>{(scatter_types::print_info(stream), 0)... };
+	}
+
+	/**
+	 * \brief Get maximal energy, in eV
+	 */
+	real get_max_energy() const
+	{
+		energy_visitor visitor;
+		nbl::tuple::for_each(*this, visitor);
+		return visitor.max_energy;
+	}
+
 /*
 	// Generic lambdas... would be nice, right?
 	// But we chose not to rely on C++14 yet...
@@ -54,7 +72,7 @@ public:
 	{
 
 		scatter_event evt{ 0, std::numeric_limits<real>::infinity() };
-		nbl::tuple::visit(*this, [&](auto scatter, size_t i)
+		nbl::tuple::for_each(*this, [&](auto scatter, size_t i)
 			{
 				auto path = scatter.sample_path(this_particle, rng);
 				if (path < evt.distance)
@@ -84,7 +102,7 @@ public:
 	inline PHYSICS scatter_event sample_path(particle const & this_particle, rng_t & rng) const
 	{
 		sample_visitor<rng_t> visitor{ this_particle, rng, { 0, std::numeric_limits<real>::infinity() }};
-		nbl::tuple::visit(*this, visitor);
+		nbl::tuple::for_each(*this, visitor);
 		return visitor.evt;
 	}
 
@@ -109,6 +127,19 @@ public:
 	}
 
 private:
+	struct energy_visitor
+	{
+		real max_energy = std::numeric_limits<real>::infinity();
+
+		template<typename scatter_type>
+		inline PHYSICS void operator()(scatter_type& scatter, size_t)
+		{
+			const real e = scatter.get_max_energy();
+			if (e < max_energy)
+				max_energy = e;
+		}
+	};
+
 	template<typename rng_t>
 	struct sample_visitor
 	{

@@ -111,15 +111,15 @@ PHYSICS type_at_index<i, types...> const & get(tuple<types...> const & tup)
 
 namespace detail
 {
-	// visit()
+	// for_each()
 	template<size_t i, typename T, typename F>
-	inline PHYSICS typename std::enable_if<i != 0, void>::type visit_impl(T const & tup, F& fun)
+	inline PHYSICS typename std::enable_if<i != 0, void>::type for_each_impl(T const & tup, F& fun)
 	{
 		fun(get<i - 1>(tup), i - 1);
-		visit_impl<i - 1>(tup, fun);
+		for_each_impl<i - 1>(tup, fun);
 	}
 	template<size_t i, typename T, typename F>
-	inline PHYSICS typename std::enable_if<i == 0, void>::type visit_impl(T const & tup, F& fun)
+	inline PHYSICS typename std::enable_if<i == 0, void>::type for_each_impl(T const & tup, F& fun)
 	{}
 
 
@@ -144,15 +144,15 @@ namespace detail
  * \param fun The function to be called.
  */
 template<typename F, typename... Ts>
-PHYSICS void visit(tuple<Ts...> const & tup, F& fun)
+PHYSICS void for_each(tuple<Ts...> const & tup, F& fun)
 {
-	detail::visit_impl<sizeof...(Ts)>(tup, fun);
+	detail::for_each_impl<sizeof...(Ts)>(tup, fun);
 }
 
 /**
  * \brief Call a function with a given element of the tuple.
  *
- * Similar to `fun(get<idx>(tup)`, with the exception that `idx` need not be
+ * Similar to `fun(get<idx>(tup))`, with the exception that `idx` need not be
  * known at compile-time. If the index is known at compile-time, the other
  * method is recommended.
  *

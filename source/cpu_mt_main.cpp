@@ -4,7 +4,9 @@
 #include "common/cli_params.h"
 #include "common/work_pool.h"
 #include "common/time_log.h"
-#include "common/output_stream.h"
+#include "io/output_stream.h"
+#include "io/load_tri_file.h"
+#include "io/load_pri_file.h"
 
 #include "drivers/cpu/simple_cpu_driver.h"
 
@@ -17,9 +19,6 @@
 #include <numeric>
 #include <thread>
 #include <mutex>
-#include "legacy_thomas/load_tri_file.h"
-#include "legacy_thomas/load_pri_file.h"
-#include "legacy_thomas/load_mat_file.h"
 
 // Main typedefs
 using geometry_t = nbl::geometry::octree<false>;
@@ -31,23 +30,33 @@ using driver = nbl::drivers::simple_cpu_driver<
 	geometry_t
 >;
 
-// TODO: material not really destroyed.
-material_t load_material(std::string const & filename)
+// Get maximal energy accepted by all material files
+real get_max_energy(std::vector<material_t> const & materials)
 {
-	if (filename.back() == 't')
+	if (materials.size() == 0)
+		return 0;
+
+	real max_energy = std::numeric_limits<real>::infinity();
+	for (auto const & mat : materials)
 	{
-		// Old .mat file format
-		return material_t(load_mat_file(filename));
+		const real e = mat.get_max_energy();
+		if (e < max_energy)
+			max_energy = e;
 	}
-	else
-	{
-		// New HDF5 file format
-		return material_t(nbl::hdf5_file(filename));
-	}
+	return max_energy;
 }
 
 int main(int argc, char** argv)
 {
+	// Print version information
+	std::clog << "This is Nebula version "
+		<< VERSION_MAJOR << "." << VERSION_MINOR << "." << VERSION_PATCH << "\n\n"
+		"Physics models:\n";
+	scatter_physics<false>::print_info(std::clog);
+	intersect_t::print_info(std::clog);
+	std::clog << "\n" << std::string(80, '-') << "\n\n";
+
+
 	// Settings
 	real energy_threshold = 0;
 	typename driver::seed_t seed = 0x14f8214e78c7e39b;
@@ -118,11 +127,20 @@ int main(int argc, char** argv)
 	timer.stop("Building acceleration structure");
 
 
+	// Load materials
+	std::clog << "Loading materials..." << std::endl;
+	timer.start();
+	std::vector<material_t> materials;
+	for (size_t parameter_idx = 2; parameter_idx < pos_flags.size(); ++parameter_idx)
+		materials.push_back(material_t(nbl::hdf5_file(pos_flags[parameter_idx])));
+	timer.stop("Loading materials");
+
+
 	// Load primaries
 	std::clog << "Loading primary electrons..." << std::endl;
 	timer.start();
 	std::vector<particle> primaries; std::vector<int2> pixels;
-	std::tie(primaries, pixels) = load_pri_file(pos_flags[1], geometry.AABB_min(), geometry.AABB_max());
+	std::tie(primaries, pixels) = load_pri_file(pos_flags[1], geometry.AABB_min(), geometry.AABB_max(), get_max_energy(materials));
 	timer.stop("Loading primary electrons");
 
 	if (primaries.empty())
@@ -138,15 +156,6 @@ int main(int argc, char** argv)
 
 	// This manages the work to be done (thread-safe).
 	work_pool pool(primaries.data(), gpu_tags.data(), primaries.size());
-
-
-	// Load materials
-	std::clog << "Loading materials..." << std::endl;
-	timer.start();
-	std::vector<material_t> materials;
-	for (size_t parameter_idx = 2; parameter_idx < pos_flags.size(); ++parameter_idx)
-		materials.push_back(load_material(pos_flags[parameter_idx]));
-	timer.stop("Loading materials");
 
 	intersect_t inter;
 

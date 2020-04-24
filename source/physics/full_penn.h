@@ -1,12 +1,5 @@
-#ifndef __INELASTIC_PENN_H_
-#define __INELASTIC_PENN_H_
-
-#include <functional>
-#include "../core/particle.h"
-#include "../common/util/table_1D.h"
-#include "../common/util/table_2D.h"
-#include "../common/util/table_3D.h"
-#include "../common/util/range.h"
+#ifndef __FULL_PENN_H_
+#define __FULL_PENN_H_
 
 namespace nbl { namespace scatter {
 
@@ -17,26 +10,39 @@ namespace nbl { namespace scatter {
  * are those with binding > 50 eV.
  *   - Fermi sea: same as Mao et al, doi:10.1063/1.3033564
  *   - Inner shells: same as Kieft et al, doi:10.1088/0022-3727/41/21/215310
- *                      (see also ::nbl::scatter::inelastic_thomas)
+ *                      (see also ::nbl::scatter::kieft_inelastic)
  *
- * \tparam gpu_flag                   Is the code to be run on a GPU?
- * \tparam opt_optical_phonon_loss    Assume optical phonon loss for energy loss less than band gap
- * \tparam opt_generate_secondary     Generate secondary electrons
- * \tparam opt_instantaneous_momentum Large losses: consider instantaneous momentum for SE
- * \tparam opt_momentum_conservation  Large losses: obey conservation of momentum
+ * \tparam gpu_flag               Is the code to be run on a GPU?
+ * \tparam generate_secondary     Generate secondary electrons
  */
 template<bool gpu_flag,
-	bool opt_optical_phonon_loss = true,
-	bool opt_generate_secondary = true,
-	bool opt_instantaneous_momentum = true,
-	bool opt_momentum_conservation = true>
-class inelastic_penn
+	bool generate_secondary = true>
+class full_penn
 {
 public:
 	/**
 	 * \brief Indicate when this class generates secondary electrons
 	 */
-	constexpr static bool may_create_se = opt_generate_secondary;
+	constexpr static bool may_create_se = generate_secondary;
+
+	/**
+	 * \brief Print diagnostic info
+	 */
+	static void print_info(std::ostream& stream)
+	{
+		stream << std::boolalpha <<
+			" * Full Penn inelastic model\n"
+			"   Options:\n"
+			"     - Generate secondary electrons: " << generate_secondary << "\n";
+	}
+
+	/**
+	 * \brief Get maximal energy, in eV
+	 */
+	PHYSICS real get_max_energy() const
+	{
+		return expr(_log_imfp_table.get_scalemax());
+	}
 
 	/**
 	 * \brief Sample a random free path length
@@ -125,7 +131,7 @@ public:
 
 
 				// Create secondary
-				if (opt_generate_secondary)
+				if (generate_secondary)
 				{
 					particle secondary_particle;
 					secondary_particle.pos = this_particle.pos;
@@ -230,11 +236,8 @@ public:
 				// sub-band gap energy loss in semiconductors and insulators (see page 78 thesis T.V.)
 				// energy loss due to longitudinal optical phonon excitation is assumed
 				// update energy and EXIT
-				if (opt_optical_phonon_loss)
-				{
-					this_particle.kin_energy -= omega;
-					particle_mgr[particle_idx] = this_particle;
-				}
+				this_particle.kin_energy -= omega;
+				particle_mgr[particle_idx] = this_particle;
 				return;
 			}
 		}
@@ -257,19 +260,13 @@ public:
 		// is at rest
 		vec3 secondary_dir = this_particle.dir*cos_theta + normal_dir*sin_theta;
 
-		// Add (optional) direction to account for the (intrinsic) instantaneous momentum
-		//  of the secondary electron.
-		// See thesis T.V. Eq. 3.108
-		if (opt_instantaneous_momentum)
-		{
-			normalise(secondary_dir);
-			secondary_dir += sqrtr(binding / dK) * rng.uniform_vector();
-		}
-
-		// ensure proper normalization of the secondary directional vector.
+		// Add direction to account for the (intrinsic) instantaneous momentum
+		// of the secondary electron. See thesis T.V. Eq. 3.108
+		normalise(secondary_dir);
+		secondary_dir += sqrtr(binding / dK) * rng.uniform_vector();
 		normalise(secondary_dir);
 
-		if (opt_generate_secondary)
+		if (generate_secondary)
 		{
 			particle secondary_particle;
 			secondary_particle.kin_energy = _fermi + omega - binding; // See thesis T.V. Eq. 3.86
@@ -281,13 +278,10 @@ public:
 
 		this_particle.kin_energy -= omega;
 
-		if (opt_momentum_conservation)
-		{
-			// primary direction determined by non-relativistic momentum-conservation, i.e.:
-			//   sin(theta)*primary_dir_2 = primary_dir - cos(theta)*secondary_dir;
-			// See thesis T.V. Eq. 3.111
-			this_particle.dir -= cos_theta * secondary_dir;
-		}
+		// primary direction determined by non-relativistic momentum-conservation,
+		// i.e. sin(theta)*primary_dir_2 = primary_dir - cos(theta)*secondary_dir.
+		// See thesis T.V. Eq. 3.111
+		this_particle.dir -= cos_theta * secondary_dir;
 
 		// Store the scattered particle in memory
 		particle_mgr[particle_idx] = this_particle;
@@ -295,37 +289,27 @@ public:
 
 
 	/**
-	 * \brief Create, given a legacy material file: this function immediately
-	 *        throws an exception.
-	 *
-	 * The Penn model is not supported by legacy material files.
-	 *
-	 * \deprecated Old file format is deprecated and not supported by all
-	 *             scattering mechanisms. This function will be removed soon.
-	 */
-	static CPU inelastic_penn create(material_legacy_thomas const & mat)
-	{
-		throw std::runtime_error("Cannot get Penn inelastic model from old-style .mat files");
-	}
-
-	/**
 	 * \brief Create, given a material file.
 	 */
-	static CPU inelastic_penn create(hdf5_file const & mat)
+	static CPU full_penn create(hdf5_file const & mat)
 	{
-		inelastic_penn inel;
+		if (!mat.exists("/full_penn"))
+			throw std::runtime_error("Full Penn model not found in "
+				"material file " + mat.get_filename());
+
+		full_penn inel;
 
 		inel._fermi = static_cast<real>(mat.get_property_quantity("fermi") / units::eV);
 		inel._band_gap = static_cast<real>(mat.get_property_quantity("band_gap", -1*units::eV) / units::eV);
 
 		{
-			inel._log_imfp_table = mat.fill_table1D<real>("full_penn/imfp");
-			auto K_range = mat.get_log_dimscale("full_penn/imfp", 0, inel._log_imfp_table.width());
+			inel._log_imfp_table = mat.fill_table1D<real>("/full_penn/imfp");
+			auto K_range = mat.get_log_dimscale("/full_penn/imfp", 0, inel._log_imfp_table.width());
 			inel._log_imfp_table.set_scale(
 				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV));
 			inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 			{
-				const real unit = mat.get_unit("full_penn/imfp") * units::nm;
+				const real unit = mat.get_unit("/full_penn/imfp") * units::nm;
 				for (int x = 0; x < K_range.size(); ++x)
 				{
 					imfp_vector[x] = std::log(imfp_vector[x] * unit);
@@ -334,17 +318,17 @@ public:
 		}
 
 		{
-			inel._log_omega_icdf_table = mat.fill_table2D<real>("full_penn/omega_icdf");
-			auto K_range = mat.get_log_dimscale("full_penn/omega_icdf", 0,
+			inel._log_omega_icdf_table = mat.fill_table2D<real>("/full_penn/omega_icdf");
+			auto K_range = mat.get_log_dimscale("/full_penn/omega_icdf", 0,
 				inel._log_omega_icdf_table.width());
-			auto P_range = mat.get_lin_dimscale("full_penn/omega_icdf", 1,
+			auto P_range = mat.get_lin_dimscale("/full_penn/omega_icdf", 1,
 				inel._log_omega_icdf_table.height());
 			inel._log_omega_icdf_table.set_scale(
 				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
 				P_range.front(), P_range.back());
 			inel._log_omega_icdf_table.mem_scope([&](real** icdf_vector)
 			{
-				const real unit = mat.get_unit("full_penn/omega_icdf") / units::eV;
+				const real unit = mat.get_unit("/full_penn/omega_icdf") / units::eV;
 				const auto fermi = mat.get_property_quantity("fermi");
 				for (int x = 0; x < K_range.size(); ++x)
 				{
@@ -361,12 +345,12 @@ public:
 		}
 
 		{
-			inel._q_icdf_table = mat.fill_table3D<real>("full_penn/q_icdf");
-			auto K_range = mat.get_log_dimscale("full_penn/q_icdf", 0,
+			inel._q_icdf_table = mat.fill_table3D<real>("/full_penn/q_icdf");
+			auto K_range = mat.get_log_dimscale("/full_penn/q_icdf", 0,
 				inel._q_icdf_table.width());
-			auto w_range = mat.get_lin_dimscale("full_penn/q_icdf", 1,
+			auto w_range = mat.get_lin_dimscale("/full_penn/q_icdf", 1,
 				inel._q_icdf_table.height());
-			auto P_range = mat.get_lin_dimscale("full_penn/q_icdf", 2,
+			auto P_range = mat.get_lin_dimscale("/full_penn/q_icdf", 2,
 				inel._q_icdf_table.depth());
 			inel._q_icdf_table.set_scale(
 				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
@@ -374,7 +358,7 @@ public:
 				P_range.front(), P_range.back());
 			inel._q_icdf_table.mem_scope([&](real*** icdf_vector)
 			{
-				const real unit = mat.get_unit("full_penn/q_icdf") * 0.19519 * units::nm;
+				const real unit = mat.get_unit("/full_penn/q_icdf") * 0.19519 * units::nm;
 				for (int x = 0; x < K_range.size(); ++x)
 				for (int y = 0; y < w_range.size(); ++y)
 				for (int z = 0; z < P_range.size(); ++z)
@@ -387,12 +371,12 @@ public:
 
 
 		{
-			inel._ionisation_table = mat.fill_table3D<real>("ionization/binding_icdf");
-			auto K_range = mat.get_log_dimscale("ionization/binding_icdf", 0,
+			inel._ionisation_table = mat.fill_table3D<real>("/ionization/binding_icdf");
+			auto K_range = mat.get_log_dimscale("/ionization/binding_icdf", 0,
 				inel._ionisation_table.width());
-			auto omega_range = mat.get_log_dimscale("ionization/binding_icdf", 1,
+			auto omega_range = mat.get_log_dimscale("/ionization/binding_icdf", 1,
 				inel._ionisation_table.height());
-			auto P_range = mat.get_lin_dimscale("ionization/binding_icdf", 2,
+			auto P_range = mat.get_lin_dimscale("/ionization/binding_icdf", 2,
 				inel._ionisation_table.depth());
 			inel._ionisation_table.set_scale(
 				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
@@ -400,7 +384,7 @@ public:
 				P_range.front(), P_range.back());
 			inel._ionisation_table.mem_scope([&](real*** icdf_vector)
 			{
-				const real unit = mat.get_unit("ionization/binding_icdf") / units::eV;
+				const real unit = mat.get_unit("/ionization/binding_icdf") / units::eV;
 				for (int x = 0; x < K_range.size(); ++x)
 				{
 					for (int y = 0; y < omega_range.size(); ++y)
@@ -425,9 +409,9 @@ public:
 	 * \brief Clone from another instance.
 	 */
 	template<bool source_gpu_flag>
-	static CPU inelastic_penn create(inelastic_penn<source_gpu_flag, opt_optical_phonon_loss, opt_generate_secondary, opt_instantaneous_momentum, opt_momentum_conservation> const & source)
+	static CPU full_penn create(full_penn<source_gpu_flag, generate_secondary> const & source)
 	{
-		inelastic_penn target;
+		full_penn target;
 
 		target._fermi = source._fermi;
 		target._band_gap = source._band_gap;
@@ -443,7 +427,7 @@ public:
 	/**
 	 * \brief Dealllocate data held by an instance of this class.
 	 */
-	static CPU void destroy(inelastic_penn & inel)
+	static CPU void destroy(full_penn & inel)
 	{
 		util::table_1D<real, gpu_flag>::destroy(inel._log_imfp_table);
 		util::table_2D<real, gpu_flag>::destroy(inel._log_omega_icdf_table);
@@ -502,8 +486,8 @@ private:
 	real _fermi;    ///< Fermi energy (eV)
 	real _band_gap; ///< Band gap (eV) (no band gap is denoted by -1)
 
-	template<bool, bool, bool, bool, bool>
-	friend class inelastic_penn;
+	template<bool, bool>
+	friend class full_penn;
 };
 
 }} // namespace nbl::scatter

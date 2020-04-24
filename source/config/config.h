@@ -28,14 +28,12 @@
 	#include "../common/cuda/cuda_mem_scope.h"
 #endif // CUDA_COMPILER_AVAILABLE
 
-// TODO: Put these somewhere nicer.
-// Define range and resolution for cross section tables.
-constexpr real K_min = 1;    ///< Min energy in simulation, in eV
-constexpr real K_max = 50e3; ///< Max energy in simulation, in eV
-constexpr int K_cnt = 1024;  ///< Number of data points along energy axis
-constexpr int P_cnt = 1024;  ///< Number of data points along probability axis
-
 /// A frequently-used constant of mathematics
 constexpr real pi = 3.1415926535897932_r;
+
+/// Version number
+constexpr unsigned int VERSION_MAJOR = 0;
+constexpr unsigned int VERSION_MINOR = 1;
+constexpr unsigned int VERSION_PATCH = 0;
 
 #endif // __CONFIG_H_

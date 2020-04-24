@@ -1,36 +1,52 @@
-#ifndef __ELASTIC_THOMAS_H_
-#define __ELASTIC_THOMAS_H_
-
-#include "../common/util/table_1D.h"
-#include "../common/util/table_2D.h"
-#include "../common/util/range.h"
-#include "../material/hdf5_file.h"
+#ifndef __KIEFT_ELASTIC_H_
+#define __KIEFT_ELASTIC_H_
 
 namespace nbl { namespace scatter {
 
 /**
- * \brief Elastic scattering, as described in Thomas Verduin's thesis.
+ * \brief Elastic scattering, according to the Kieft & Bosch model.
  *
  * This is a combination of Mott scattering (for energy > 200 eV), acoustic
  * phonon scattering (< 100 eV) and interpolation in between. The cross sections
  * are combined by the cross section tool.
  *
- * T.V.'s thesis: doi:10.4233/uuid:f214f594-a21f-4318-9f29-9776d60ab06c
+ *   - See doi:10.1088/0022-3727/41/21/215310 (Kieft paper)
+ *   - See doi:10.4233/uuid:f214f594-a21f-4318-9f29-9776d60ab06c (Verduin thesis)
  *
- * \tparam gpu_flag                 Is the code to be run on a GPU?
- * \tparam opt_acoustic_phonon_loss Lose energy to acoustic phonons
- * \tparam opt_atomic_recoil_loss   Lose energy to atomic recoil for Mott scattering.
+ * \tparam gpu_flag             Is the code to be run on a GPU?
+ * \tparam acoustic_phonon_loss Lose energy to acoustic phonons
+ * \tparam atomic_recoil_loss   Lose energy to atomic recoil for Mott scattering.
  */
 template<bool gpu_flag,
-	bool opt_acoustic_phonon_loss = true,
-	bool opt_atomic_recoil_loss = true>
-class elastic_thomas
+	bool acoustic_phonon_loss = true,
+	bool atomic_recoil_loss = true>
+class kieft_elastic
 {
 public:
 	/**
 	 * \brief Indicate that this class never generates secondary electrons.
 	 */
 	constexpr static bool may_create_se = false;
+
+	/**
+	 * \brief Print diagnostic info
+	 */
+	static void print_info(std::ostream& stream)
+	{
+		stream << std::boolalpha <<
+			" * Kieft & Bosch elastic model\n"
+			"   Options:\n"
+			"     - Acoustic phonon loss: " << acoustic_phonon_loss << "\n"
+			"     - Atomic recoil loss: " << atomic_recoil_loss << "\n";
+	}
+
+	/**
+	 * \brief Get maximal energy, in eV
+	 */
+	PHYSICS real get_max_energy() const
+	{
+		return expr(_log_imfp_table.get_scalemax());
+	}
 
 	/**
 	 * \brief Sample a random free path length
@@ -81,14 +97,14 @@ public:
 		// TODO: set variable domain for phonon scattering
 		if (this_particle.kin_energy < 200)
 		{
-			if (opt_acoustic_phonon_loss)
+			if (acoustic_phonon_loss)
 				this_particle.kin_energy -= minr(50e-3f, _phonon_loss);
 		}
 		else
 		{
 			// account for atomic recoil (only added for compliance with Kieft & Bosch code)
 			// There is no reference for this formula, can only be found in the Kieft & Bosch code.
-			if (opt_atomic_recoil_loss)
+			if (atomic_recoil_loss)
 			{
 				this_particle.kin_energy -= _recoil_const*(1 - cos_theta) * this_particle.kin_energy;
 			}
@@ -99,74 +115,24 @@ public:
 	}
 
 	/**
-	 * \brief Create, given a legacy material file
-	 *
-	 * \deprecated Old file format is deprecated and not supported by all
-	 *             scattering mechanisms. This function will be removed soon.
-	 */
-	static CPU elastic_thomas create(material_legacy_thomas const & mat)
-	{
-		elastic_thomas el;
-
-		util::geomspace<double> K_range(K_min, K_max, K_cnt);
-		util::linspace<double> P_range(0, 1, P_cnt);
-
-
-		/*
-		 * Set IMFP table
-		 */
-		el._log_imfp_table = util::table_1D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt);
-		el._log_imfp_table.mem_scope([&](real* imfp_vector)
-		{
-			for (int x = 0; x < K_cnt; ++x)
-			{
-				const double K = K_range[x]*constant::ec; // in Joules
-				imfp_vector[x] = (real)std::log(mat.density()*mat.elastic_tcs(K)*1e-9);
-			}
-		});
-
-
-		/*
-		 * Set ICDF table
-		 */
-		el._icdf_table = util::table_2D<real, gpu_flag>::create(logr(K_min), logr(K_max), K_cnt, 0, 1, P_cnt);
-		el._icdf_table.mem_scope([&](real** icdf_vector)
-		{
-			for (int y = 0; y < P_cnt; ++y)
-			{
-				const double P = P_range[y];
-				for (int x = 0; x < K_cnt; ++x)
-				{
-					const double K = K_range[x]*constant::ec; // in Joules
-
-					icdf_vector[x][y] = (real)std::cos(std::max(0.0, std::min((double)pi, mat.elastic_icdf(K, P))));
-				}
-			}
-		});
-
-		el._phonon_loss = mat.phonon_loss()/constant::ec;
-		el._recoil_const = real(2 * 9.109282e-28 * 6.02214086e+23 / 28.1);
-		//                      2 * el mass      * Avogadro const / silicon A
-		// Hard-coded A for silicon: not in the material file. This is also what e-scatter does.
-
-		return el;
-	}
-
-	/**
 	 * \brief Create, given a material file
 	 */
-	static CPU elastic_thomas create(hdf5_file const & mat)
+	static CPU kieft_elastic create(hdf5_file const & mat)
 	{
-		elastic_thomas el;
+		if (!mat.exists("/elastic"))
+			throw std::runtime_error("Kieft elastic model not found in "
+				"material file " + mat.get_filename());
+
+		kieft_elastic el;
 
 		{
-			el._log_imfp_table = mat.fill_table1D<real>("elastic/imfp");
-			auto K_range = mat.get_log_dimscale("elastic/imfp", 0, el._log_imfp_table.width());
+			el._log_imfp_table = mat.fill_table1D<real>("/elastic/imfp");
+			auto K_range = mat.get_log_dimscale("/elastic/imfp", 0, el._log_imfp_table.width());
 			el._log_imfp_table.set_scale(
 				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV));
 			el._log_imfp_table.mem_scope([&](real* imfp_vector)
 			{
-				const real unit = mat.get_unit("elastic/imfp") * units::nm;
+				const real unit = mat.get_unit("/elastic/imfp") * units::nm;
 				for (int x = 0; x < K_range.size(); ++x)
 				{
 					imfp_vector[x] = std::log(imfp_vector[x] * unit);
@@ -175,9 +141,9 @@ public:
 		}
 
 		{
-			el._icdf_table = mat.fill_table2D<real>("elastic/costheta_icdf");
-			auto K_range = mat.get_log_dimscale("elastic/costheta_icdf", 0, el._icdf_table.width());
-			auto P_range = mat.get_lin_dimscale("elastic/costheta_icdf", 1, el._icdf_table.height());
+			el._icdf_table = mat.fill_table2D<real>("/elastic/costheta_icdf");
+			auto K_range = mat.get_log_dimscale("/elastic/costheta_icdf", 0, el._icdf_table.width());
+			auto P_range = mat.get_lin_dimscale("/elastic/costheta_icdf", 1, el._icdf_table.height());
 			el._icdf_table.set_scale(
 				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
 				P_range.front(), P_range.back());
@@ -203,9 +169,9 @@ public:
 	 * \brief Clone from another instance.
 	 */
 	template<bool source_gpu_flag>
-	static CPU elastic_thomas create(elastic_thomas<source_gpu_flag, opt_acoustic_phonon_loss, opt_atomic_recoil_loss> const & source)
+	static CPU kieft_elastic create(kieft_elastic<source_gpu_flag, acoustic_phonon_loss, atomic_recoil_loss> const & source)
 	{
-		elastic_thomas target;
+		kieft_elastic target;
 
 		target._phonon_loss = source._phonon_loss;
 		target._recoil_const = source._recoil_const;
@@ -219,7 +185,7 @@ public:
 	/**
 	 * \brief Dealllocate data held by an instance of this class.
 	 */
-	static CPU void destroy(elastic_thomas & el)
+	static CPU void destroy(kieft_elastic & el)
 	{
 		util::table_1D<real, gpu_flag>::destroy(el._log_imfp_table);
 		util::table_2D<real, gpu_flag>::destroy(el._icdf_table);
@@ -250,9 +216,9 @@ private:
 	real _recoil_const; ///< Amount of energy lost in a Mott event (eV)
 
 	template<bool, bool, bool>
-	friend class elastic_thomas;
+	friend class kieft_elastic;
 };
 
 }} // namespace nbl::scatter
 
-#endif // __ELASTIC_THOMAS_H_
+#endif // __KIEFT_ELASTIC_H_

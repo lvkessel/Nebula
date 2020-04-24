@@ -94,6 +94,18 @@ CPU void table_1D<T, gpu_flag>::set_scale(real x_min, real x_max)
 }
 
 template<typename T, bool gpu_flag>
+PHYSICS real table_1D<T, gpu_flag>::get_scalemin() const
+{
+	return _x_min;
+}
+
+template<typename T, bool gpu_flag>
+PHYSICS real table_1D<T, gpu_flag>::get_scalemax() const
+{
+	return _x_min + (_n - 1) / _x_step;
+}
+
+template<typename T, bool gpu_flag>
 template<bool gpu2>
 CPU typename std::enable_if<!gpu2, T*>::type table_1D<T, gpu_flag>::data()
 {

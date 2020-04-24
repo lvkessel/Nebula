@@ -2,8 +2,7 @@
 #define __MATERIAL_H_
 
 #include "scatter_list.h"
-#include "../legacy_thomas/material.hh"
-#include "../material/hdf5_file.h"
+#include "../io/hdf5_file.h"
 
 // TODO namespace
 
@@ -22,13 +21,6 @@ struct material<scatter_list<scatter_types...>>
 	: public scatter_list<scatter_types...>
 {
 public:
-	/**
-	 * \brief Constructor. Read from an `e-scatter`-style `.mat` file.
-	 * \deprecated Old file format is deprecated and not supported by all
-	 *             scattering mechanisms. This function will be removed soon.
-	 */
-	CPU material(material_legacy_thomas const & mat);
-
 	/**
 	 * \brief Constructor. Read from a HDF5 material file.
 	 */

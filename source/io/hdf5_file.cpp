@@ -1,6 +1,7 @@
 #include "../config/config.h"
 #include "hdf5_file.h"
 #include <hdf5_hl.h>
+#include <array>
 #include <vector>
 
 namespace nbl {
@@ -153,6 +154,7 @@ namespace
 
 
 hdf5_file::hdf5_file(std::string const & filename)
+	: _filename(filename)
 {
 	H5Eset_auto(H5E_DEFAULT, nullptr, nullptr);
 	_file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -162,6 +164,16 @@ hdf5_file::hdf5_file(std::string const & filename)
 hdf5_file::~hdf5_file()
 {
 	 H5Fclose(_file);
+}
+
+std::string const & hdf5_file::get_filename() const
+{
+	return _filename;
+}
+
+bool hdf5_file::exists(std::string const & name) const
+{
+	return (H5LTpath_valid(_file, name.c_str(), 0) == 1);
 }
 
 std::string hdf5_file::get_property_string(std::string const & name) const

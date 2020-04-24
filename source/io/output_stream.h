@@ -1,6 +1,7 @@
 #ifndef __OUTPUT_STREAM_H_
 #define __OUTPUT_STREAM_H_
 
+#include <iostream>
 #include <fstream>
 #include <mutex>
 #include <algorithm>

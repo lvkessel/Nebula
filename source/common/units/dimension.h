@@ -7,7 +7,7 @@
  * of these powers, only integer powers for now.
  * This struct keeps track of dimensions, such as "energy" and "length".
  * What consitites "one energy" (e.g. electronvolt, joule) is defined elsewhere.
- * 
+ *
  * The bottom of this file defines some standard dimensions to be used elsewhere.
  */
 

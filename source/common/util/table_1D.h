@@ -115,6 +115,16 @@ public:
 	inline CPU void set_scale(real x_min, real x_max);
 
 	/**
+	 * \brief Get the lowest point in the "x range" of the data.
+	 */
+	inline PHYSICS real get_scalemin() const;
+
+	/**
+	 * \brief Get the highest point in the "x range" of the data.
+	 */
+	inline PHYSICS real get_scalemax() const;
+
+	/**
 	 * \brief Get write access to the underlying data array.
 	 *
 	 * This is only possible if \p gpu_flag is false.

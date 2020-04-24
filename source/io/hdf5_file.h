@@ -38,6 +38,16 @@ public:
 	~hdf5_file();
 
 	/**
+	 * \brief Get the filename.
+	 */
+	std::string const & get_filename() const;
+
+	/**
+	 * \brief Check if a link with a certain name exists.
+	 */
+	bool exists(std::string const & name) const;
+
+	/**
 	 * \brief Get a string property. Throws `std::runtime_error` exception if
 	 * not found.
 	 *
@@ -162,9 +172,10 @@ public:
 		units::unit_parser<double> const & parser = units::default_unit_parser()) const;
 
 private:
+	std::string _filename;
 	hid_t _file;
 };
 
 } // namespace nbl
 
-#endif // __H5_FILE_H_
+#endif // __HDF5_FILE_H_

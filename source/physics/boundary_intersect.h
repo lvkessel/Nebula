@@ -1,26 +1,37 @@
-#ifndef __INTERSECT_THOMAS_H_
-#define __INTERSECT_THOMAS_H_
-
-// TODO: store barrier here.
+#ifndef __BOUNDARY_INTERSECT_H_
+#define __BOUNDARY_INTERSECT_H_
 
 #include "../core/triangle.h"
 
 /**
  * \brief Material boundary intersection.
  *
- *   - See doi:10.1088/0022-3727/41/21/215310 (Kieft paper)
- *   - See doi:10.4233/uuid:f214f594-a21f-4318-9f29-9776d60ab06c (Verduin thesis)
+ * See  (Kieft paper)
  *
- * \tparam opt_quantum_transmission Consider probabilistic transmission
- * \tparam opt_interface_refraction Consider refraction at interface
- * \tparam opt_interface_absorption Empirical interface absorption (from Kieft et al.)
+ * \tparam quantum_transmission Consider probabilistic transmission
+ * \tparam interface_refraction Consider refraction at interface
+ * \tparam interface_absorption Empirical interface absorption (Kieft et al.
+ *                                  doi:10.1088/0022-3727/41/21/215310)
  */
 template<
-	bool opt_quantum_transmission = true,
-	bool opt_interface_refraction = true,
-	bool opt_interface_absorption = false>
-struct intersect_thomas
+	bool quantum_transmission = true,
+	bool interface_refraction = true,
+	bool interface_absorption = false>
+struct boundary_intersect
 {
+	/**
+	 * \brief Print diagnostic info
+	 */
+	static void print_info(std::ostream& stream)
+	{
+		stream << std::boolalpha <<
+			" * Material boundary crossing model\n"
+			"   Options:\n"
+			"     - Quantum mechanical transmission: " << quantum_transmission << "\n"
+			"     - Interface refraction: " << interface_refraction << "\n"
+			"     - Empirical interface absorption: " << interface_absorption << "\n";
+	}
+
 	/**
 	 * \brief Perform intersection event.
 	 */
@@ -102,12 +113,12 @@ struct intersect_thomas
 		if (this_particle.kin_energy*cos_theta*cos_theta + dU > 0)
 		{
 			const real s = sqrtr(1 + dU / (this_particle.kin_energy*cos_theta*cos_theta));
-			const real T = (opt_quantum_transmission
+			const real T = (quantum_transmission
 				? 4 * s / ((1 + s)*(1 + s))
 				: 1);
 			if (rng.unit() < T)
 			{
-				if (opt_interface_refraction)
+				if (interface_refraction)
 				{
 					// determine the angle of refraction
 					// see thesis T.V. Eq. 3.139
@@ -127,7 +138,7 @@ struct intersect_thomas
 
 		// surface absorption? (this is in accordance with Kieft & Bosch code)
 		// note that the default behaviour has this feature disabled
-		if (opt_interface_absorption)
+		if (interface_absorption)
 		{
 			if (dU < 0 && rng.unit() < expr(1 + 0.5_r*this_particle.kin_energy / dU))
 			{
@@ -142,4 +153,4 @@ struct intersect_thomas
 	}
 };
 
-#endif // __INTERSECT_THOMAS_H_
+#endif // __BOUNDARY_INTERSECT_H_

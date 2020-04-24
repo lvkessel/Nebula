@@ -158,7 +158,7 @@ public:
 	inline PHYSICS size_t depth() const;
 
 	/**
-	 * \Brief Set the scale.
+	 * \brief Set the scale.
 	 *
 	 * The data itself is preserved.
 	 */
@@ -195,7 +195,7 @@ private:
 
 	friend struct detail::table_3D_factory<T, gpu_flag>;
 	friend struct detail::table_3D_factory<T, !gpu_flag>;
-	friend struct table_3D<T, !gpu_flag>;
+	friend class table_3D<T, !gpu_flag>;
 };
 
 }} // namespace nbl::util

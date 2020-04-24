@@ -25,7 +25,7 @@ size_t num_pris(std::string const & filename)
 	return size / (7*sizeof(float) + 2*sizeof(int));
 }
 
-std::pair<std::vector<particle>, std::vector<int2>> load_pri_file(std::string const & filename, vec3 min_pos, vec3 max_pos)
+std::pair<std::vector<particle>, std::vector<int2>> load_pri_file(std::string const & filename, vec3 min_pos, vec3 max_pos, real max_E)
 {
 	constexpr size_t pri_size = 7*sizeof(float) + 2*sizeof(int);
 	constexpr size_t buffer_size = 1024;
@@ -91,7 +91,7 @@ std::pair<std::vector<particle>, std::vector<int2>> load_pri_file(std::string co
 				++low_energy.first;
 			}
 
-			if (primary.kin_energy > K_max)
+			if (primary.kin_energy > max_E)
 			{
 				if (high_energy.first == 0)
 					high_energy.second = primary.kin_energy;
@@ -123,9 +123,10 @@ std::pair<std::vector<particle>, std::vector<int2>> load_pri_file(std::string co
 			<< low_energy.second << " eV." << std::endl;
 	if (high_energy.first > 0)
 		std::clog << "WARNING: " << high_energy.first
-			<< " primary electrons starting with kinetic energy higher than the hard-coded limit."
-			<< " Limit is " << (K_max/1000) << " keV, example energy is "
-			<< (high_energy.second/1000) << " keV. Complain to the developers." << std::endl;
+			<< " primary electrons starting with kinetic energy higher than what"
+			   " is available in the material files. Limit is " << (max_E/1000)
+			<< " keV, example energy is " << (high_energy.second/1000) << " keV."
+			<< std::endl;
 	if (direction.first > 0)
 		std::clog << "WARNING: " << direction.first
 			<< " primary electrons start with unphysical direction vector. Example: ("
