@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.8)
 project(nebula C CXX)
 
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 
@@ -11,6 +13,8 @@ check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
 	enable_language(CUDA)
 	set(CMAKE_CUDA_STANDARD 11)
+	set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+	set(CMAKE_CUDA_EXTENSIONS OFF)
 	add_definitions(-DCUDA_HEADERS_AVAILABLE=1)
 	include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 else()
@@ -35,9 +39,14 @@ endif()
 find_package(Threads REQUIRED)
 
 
-string(APPEND CMAKE_CXX_FLAGS " -O3 -DNDEBUG")
+if(NOT CMAKE_BUILD_TYPE)
+	SET(CMAKE_BUILD_TYPE "Release" CACHE STRING
+		"Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+		FORCE)
+endif()
+
 string(APPEND CMAKE_CUDA_FLAGS " --expt-relaxed-constexpr")
-string(APPEND CMAKE_CUDA_FLAGS " -O3 -prec-sqrt=false")
+string(APPEND CMAKE_CUDA_FLAGS " -prec-sqrt=false")
 string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_30,code=compute_30")
 string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_37,code=compute_37")
 string(APPEND CMAKE_CUDA_FLAGS " -gencode arch=compute_60,code=compute_60")
