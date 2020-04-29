@@ -48,8 +48,8 @@ public:
 	 *               `data[x,y] = data + y*width + x`.
 	 */
 	static CPU table_2D<T, gpu_flag> create(
-		real x_min, real x_max, size_t width,
-		real y_min, real y_max, size_t height,
+		real x_min, real x_max, int width,
+		real y_min, real y_max, int height,
 		T* data = nullptr);
 
 	/**
@@ -90,14 +90,14 @@ public:
 	 * \param i Index to be accessed in the first dimension.
 	 * \param j Index to be accessed in the second dimension.
 	 */
-	inline PHYSICS T & operator()(size_t i, size_t j);
+	inline PHYSICS T & operator()(int i, int j);
 	/**
 	 * \brief Direct read-only access to data. No bounds checking is done.
 	 *
 	 * \param i Index to be accessed in the first dimension.
 	 * \param j Index to be accessed in the second dimension.
 	 */
-	inline PHYSICS T const & operator()(size_t i, size_t j) const;
+	inline PHYSICS T const & operator()(int i, int j) const;
 
 	/**
 	 * \brief Get value at some (x,y) coordinate, with linear interpolation and
@@ -136,12 +136,12 @@ public:
 	/**
 	 * \brief Get the width of this table.
 	 */
-	inline PHYSICS size_t width() const;
+	inline PHYSICS int width() const;
 
 	/**
 	 * \brief Get the height of this table.
 	 */
-	inline PHYSICS size_t height() const;
+	inline PHYSICS int height() const;
 
 	/**
 	 * \brief Set the scale.
@@ -166,11 +166,11 @@ private:
 	T* _data = nullptr;
 	size_t _pitch = 0;
 
-	size_t _width = 0;
+	int _width = 0;
 	real _x_min = 0;
 	real _x_step = 0;
 
-	size_t _height = 0;
+	int _height = 0;
 	real _y_min = 0;
 	real _y_step = 0;
 

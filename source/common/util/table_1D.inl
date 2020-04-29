@@ -4,7 +4,7 @@ namespace nbl { namespace util {
 
 template<typename T, bool gpu_flag>
 CPU table_1D<T, gpu_flag> table_1D<T, gpu_flag>::create(
-	real x_min, real x_max, size_t n,
+	real x_min, real x_max, int n,
 	T* data)
 {
 	table_1D<T, gpu_flag> table;
@@ -52,12 +52,12 @@ CPU void table_1D<T, gpu_flag>::set(table_1D<T, other_gpu_flag> const & source)
 }
 
 template<typename T, bool gpu_flag>
-PHYSICS T & table_1D<T, gpu_flag>::operator()(size_t i)
+PHYSICS T & table_1D<T, gpu_flag>::operator()(int i)
 {
 	return _data[i];
 }
 template<typename T, bool gpu_flag>
-PHYSICS T const & table_1D<T, gpu_flag>::operator()(size_t i) const
+PHYSICS T const & table_1D<T, gpu_flag>::operator()(int i) const
 {
 	return _data[i];
 }
@@ -81,7 +81,7 @@ Original implementation does not handle infinities correctly.
 }
 
 template<typename T, bool gpu_flag>
-PHYSICS size_t table_1D<T, gpu_flag>::width() const
+PHYSICS int table_1D<T, gpu_flag>::width() const
 {
 	return _n;
 }
@@ -117,7 +117,7 @@ namespace detail
 	template<typename T>
 	struct table_1D_factory<T, false>
 	{
-		inline static CPU void allocate(table_1D<T, false> & table, size_t n)
+		inline static CPU void allocate(table_1D<T, false> & table, int n)
 		{
 			table._n = n;
 			table._data = new T[n];
@@ -156,7 +156,7 @@ namespace detail
 	template<typename T>
 	struct table_1D_factory<T, true>
 	{
-		inline static CPU void allocate(table_1D<T, true> & table, size_t n)
+		inline static CPU void allocate(table_1D<T, true> & table, int n)
 		{
 			table._n = n;
 			cuda::cuda_new<T>(&table._data, n);

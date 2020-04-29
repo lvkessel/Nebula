@@ -51,9 +51,9 @@ public:
 	 *               `data[x,y,z] = data + z*width*height + y*width + x`.
 	 */
 	static CPU table_3D<T, gpu_flag> create(
-		real x_min, real x_max, size_t width,
-		real y_min, real y_max, size_t height,
-		real z_min, real z_max, size_t depth,
+		real x_min, real x_max, int width,
+		real y_min, real y_max, int height,
+		real z_min, real z_max, int depth,
 		T* data = nullptr);
 
 	/**
@@ -95,7 +95,7 @@ public:
 	 * \param j Index to be accessed in the second dimension.
 	 * \param k Index to be accessed in the third dimension.
 	 */
-	inline PHYSICS T & operator()(size_t i, size_t j, size_t k);
+	inline PHYSICS T & operator()(int i, int j, int k);
 	/**
 	 * \brief Direct read-only access to data. No bounds checking is done.
 	 *
@@ -103,7 +103,7 @@ public:
 	 * \param j Index to be accessed in the second dimension.
 	 * \param k Index to be accessed in the third dimension.
 	 */
-	inline PHYSICS T const & operator()(size_t i, size_t j, size_t k) const;
+	inline PHYSICS T const & operator()(int i, int j, int k) const;
 
 	/**
 	 * \brief Get value at some (x,y,z) coordinate, with linear interpolation
@@ -145,17 +145,17 @@ public:
 	/**
 	 * \brief Get the width of this table.
 	 */
-	inline PHYSICS size_t width() const;
+	inline PHYSICS int width() const;
 
 	/**
 	 * \brief Get the height of this table.
 	 */
-	inline PHYSICS size_t height() const;
+	inline PHYSICS int height() const;
 
 	/**
 	 * \brief Get the depth of this table.
 	 */
-	inline PHYSICS size_t depth() const;
+	inline PHYSICS int depth() const;
 
 	/**
 	 * \brief Set the scale.
@@ -181,15 +181,15 @@ private:
 	T* _data = nullptr;
 	size_t _pitch = 0;
 
-	size_t _width = 0;
+	int _width = 0;
 	real _x_min = 0;
 	real _x_step = 0;
 
-	size_t _height = 0;
+	int _height = 0;
 	real _y_min = 0;
 	real _y_step = 0;
 
-	size_t _depth = 0;
+	int _depth = 0;
 	real _z_min = 0;
 	real _z_step = 0;
 

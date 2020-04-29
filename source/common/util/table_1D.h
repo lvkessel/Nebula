@@ -44,7 +44,7 @@ public:
 	 * \param data  Optionally: provide data.
 	 */
 	static CPU table_1D<T, gpu_flag> create(
-		real x_min, real x_max, size_t n,
+		real x_min, real x_max, int n,
 		T* data = nullptr);
 
 	/**
@@ -82,13 +82,13 @@ public:
 	 *
 	 * \param i Index to be accessed.
 	 */
-	inline PHYSICS T & operator()(size_t i);
+	inline PHYSICS T & operator()(int i);
 	/**
 	 * \brief Direct read-only access to data. No bounds checking is done.
 	 *
 	 * \param i Index to be accessed.
 	 */
-	inline PHYSICS T const & operator()(size_t i) const;
+	inline PHYSICS T const & operator()(int i) const;
 
 	/**
 	 * \brief Get value at some x coordinate, with linear interpolation and
@@ -105,7 +105,7 @@ public:
 	/**
 	 * \brief Get the width (size) of this table.
 	 */
-	inline PHYSICS size_t width() const;
+	inline PHYSICS int width() const;
 
 	/**
 	 * \brief Set the scale, that is, the "x range" of the data.
@@ -135,7 +135,7 @@ public:
 private:
 	T* _data = nullptr;
 
-	size_t _n = 0;
+	int _n = 0;
 	real _x_min = 0;
 	real _x_step = 0;
 

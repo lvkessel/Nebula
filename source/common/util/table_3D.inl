@@ -4,9 +4,9 @@ namespace nbl { namespace util {
 
 template<typename T, bool gpu_flag>
 CPU table_3D<T, gpu_flag> table_3D<T, gpu_flag>::create(
-	real x_min, real x_max, size_t width,
-	real y_min, real y_max, size_t height,
-	real z_min, real z_max, size_t depth,
+	real x_min, real x_max, int width,
+	real y_min, real y_max, int height,
+	real z_min, real z_max, int depth,
 	T* data)
 {
 	table_3D<T, gpu_flag> table;
@@ -64,13 +64,13 @@ CPU void table_3D<T, gpu_flag>::set(table_3D<T, other_gpu_flag> const & source)
 }
 
 template<typename T, bool gpu_flag>
-PHYSICS T & table_3D<T, gpu_flag>::operator()(size_t i, size_t j, size_t k)
+PHYSICS T & table_3D<T, gpu_flag>::operator()(int i, int j, int k)
 {
 	return *(reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(_data) + (j + i*_height) * _pitch) + k);
 }
 
 template<typename T, bool gpu_flag>
-PHYSICS T const & table_3D<T, gpu_flag>::operator()(size_t i, size_t j, size_t k) const
+PHYSICS T const & table_3D<T, gpu_flag>::operator()(int i, int j, int k) const
 {
 	return *(reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(_data) + (j + i*_height) * _pitch) + k);
 }
@@ -134,19 +134,19 @@ PHYSICS T table_3D<T, gpu_flag>::get_nearest(real x, real y, real z) const
 }
 
 template<typename T, bool gpu_flag>
-PHYSICS size_t table_3D<T, gpu_flag>::width() const
+PHYSICS int table_3D<T, gpu_flag>::width() const
 {
 	return _width;
 }
 
 template<typename T, bool gpu_flag>
-PHYSICS size_t table_3D<T, gpu_flag>::height() const
+PHYSICS int table_3D<T, gpu_flag>::height() const
 {
 	return _height;
 }
 
 template<typename T, bool gpu_flag>
-PHYSICS size_t table_3D<T, gpu_flag>::depth() const
+PHYSICS int table_3D<T, gpu_flag>::depth() const
 {
 	return _depth;
 }
@@ -177,7 +177,7 @@ namespace detail
 	template<typename T>
 	struct table_3D_factory<T, false>
 	{
-		inline static CPU void allocate(table_3D<T, false> & table, size_t width, size_t height, size_t depth)
+		inline static CPU void allocate(table_3D<T, false> & table, int width, int height, int depth)
 		{
 			table._width = width;
 			table._height = height;
@@ -211,10 +211,10 @@ namespace detail
 		{
 			// Make indirect arrays
 			T** host_pp = new T*[table._height * table._width];
-			for (size_t y = 0; y < table._height*table._width; ++y)
+			for (int y = 0; y < table._height*table._width; ++y)
 				host_pp[y] = reinterpret_cast<T*>(reinterpret_cast<uint8_t*>(table._data) + y * table._pitch);
 			T*** host_ppp = new T**[table._width];
-			for (size_t x = 0; x < table._width; ++x)
+			for (int x = 0; x < table._width; ++x)
 				host_ppp[x] = &host_pp[x * table._height];
 
 			callback(host_ppp);
@@ -238,7 +238,7 @@ namespace detail
 	template<typename T>
 	struct table_3D_factory<T, true>
 	{
-		inline static CPU void allocate(table_3D<T, true> & table, size_t width, size_t height, size_t depth)
+		inline static CPU void allocate(table_3D<T, true> & table, int width, int height, int depth)
 		{
 			table._width = width;
 			table._height = height;
