@@ -42,11 +42,11 @@ public:
 	 *   - Pointer to first corresponding tag
 	 *   - Number of particles obtained, may be less than batch_size
 	 */
-	std::tuple<particle*, uint32_t*, size_t> get_work(size_t batch_size)
+	std::tuple<particle*, uint32_t*, uint32_t> get_work(uint32_t batch_size)
 	{
 		std::lock_guard<std::mutex> lock(mutex);
 
-		auto particles_pushed = std::min(batch_size, primaries_to_go);
+		uint32_t particles_pushed = (uint32_t)std::min<size_t>(batch_size, primaries_to_go);
 		auto return_data = std::make_tuple(next_primary, next_tag, particles_pushed);
 		next_primary += particles_pushed;
 		next_tag += particles_pushed;

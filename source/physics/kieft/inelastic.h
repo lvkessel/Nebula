@@ -225,11 +225,11 @@ public:
 			auto K_range = mat.get_log_dimscale("/inelastic_kieft/imfp", 0,
 				inel._log_imfp_table.width());
 			inel._log_imfp_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV));
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV));
 			inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 			{
-				const real unit = mat.get_unit("/inelastic_kieft/imfp") * units::nm;
-				for (int x = 0; x < K_range.size(); ++x)
+				const real unit = real(mat.get_unit("/inelastic_kieft/imfp") * units::nm);
+				for (size_t x = 0; x < K_range.size(); ++x)
 				{
 					imfp_vector[x] = std::log(imfp_vector[x] * unit);
 				}
@@ -243,16 +243,16 @@ public:
 			auto P_range = mat.get_lin_dimscale("/inelastic_kieft/w0_icdf", 1,
 				inel._log_icdf_table.height());
 			inel._log_icdf_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
-				P_range.front(), P_range.back());
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV),
+				(real)P_range.front(), (real)P_range.back());
 			inel._log_icdf_table.mem_scope([&](real** icdf_vector)
 			{
-				const real unit = mat.get_unit("/inelastic_kieft/w0_icdf") / units::eV;
+				const real unit = real(mat.get_unit("/inelastic_kieft/w0_icdf") / units::eV);
 				const auto fermi = mat.get_property_quantity("fermi");
-				for (int x = 0; x < K_range.size(); ++x)
+				for (size_t x = 0; x < K_range.size(); ++x)
 				{
 					auto K = K_range[x];
-					for (int y = 0; y < P_range.size(); ++y)
+					for (size_t y = 0; y < P_range.size(); ++y)
 					{
 						icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min<double>(
 							(K - fermi) / units::eV,
@@ -270,8 +270,8 @@ public:
 			auto P_range = mat.get_lin_dimscale("/ionization/binding_icdf", 1,
 				inel._ionisation_table.height());
 			inel._ionisation_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
-				P_range.front(), P_range.back());
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV),
+				(real)P_range.front(), (real)P_range.back());
 			inel._ionisation_table.mem_scope([&](real** ionisation_vector)
 			{
 				// Get outer_shells vector, containing outer-shell energies sorted from low to high.
@@ -279,7 +279,7 @@ public:
 				{
 					const auto outer_shell_table = mat.fill_table1D<double>("/ionization/outer_shells");
 					const auto unit = mat.get_unit("/ionization/outer_shells");
-					for (int i = 0; i < outer_shell_table.width(); ++i)
+					for (size_t i = 0; i < outer_shell_table.width(); ++i)
 					{
 						const units::quantity<double> value = outer_shell_table(i) * unit;
 						if (value < 100*units::eV)
@@ -290,12 +290,12 @@ public:
 
 				// Create the simulation table
 				const auto unit = mat.get_unit("/ionization/binding_icdf");
-				for (int x = 0; x < K_range.size(); ++x)
+				for (size_t x = 0; x < K_range.size(); ++x)
 				{
 					auto K = K_range[x];
-					for (int y = 0; y < P_range.size(); ++y)
+					for (size_t y = 0; y < P_range.size(); ++y)
 					{
-						const real P = P_range[y];
+						const real P = (real)P_range[y];
 
 						// Magic KB number
 						const units::quantity<double> margin = 10 * units::eV;
@@ -304,7 +304,7 @@ public:
 						if (K > 100*units::eV)
 						{
 							binding = inel._ionisation_table.get_rounddown(
-								std::log((K+margin)/units::eV), P) * units::eV;
+								(real)std::log((K+margin)/units::eV), P) * unit;
 							if (binding < 50*units::eV || !std::isfinite(binding.value))
 								binding = -1 * units::eV;
 						}

@@ -71,7 +71,7 @@ PHYSICS intersect_event trilist<gpu_flag>::propagate(vec3 start, vec3 direction,
 		// if the outgoing material is the same as current, nothing happens
 		// if the triangle represents a detector which can't see the current
 		// particle, nothing happens
-		if ((mat_idx_out == ignore_material))// || (mat_idx_out == triangle::NOP))
+		if (mat_idx_out == ignore_material)
 			continue;
 
 		const real t = this_triangle.intersect_ray(start, direction);

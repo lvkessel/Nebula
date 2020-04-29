@@ -3,6 +3,7 @@
 #include <hdf5_hl.h>
 #include <array>
 #include <vector>
+#include <assert.h>
 
 namespace nbl {
 
@@ -233,7 +234,9 @@ util::table_1D<T, false> hdf5_file::fill_table1D(std::string const & dataset_nam
 		throw std::runtime_error("Could not read table '" + dataset_name + '\'');
 
 	std::array<hsize_t, 1> dimensions = get_size<1>(dataset);
-	auto table = util::table_1D<T, false>::create(0, 1, dimensions[0]);
+	assert(dimensions[0] < std::numeric_limits<int>::max());
+
+	auto table = util::table_1D<T, false>::create(0, 1, int(dimensions[0]));
 	H5Dread(dataset, H5_mem_type<T>(),
 		H5S_ALL, H5S_ALL, H5P_DEFAULT, table.data());
 
@@ -249,9 +252,12 @@ util::table_2D<T, false> hdf5_file::fill_table2D(std::string const & dataset_nam
 		throw std::runtime_error("Could not read table '" + dataset_name + '\'');
 
 	std::array<hsize_t, 2> dimensions = get_size<2>(dataset);
+	assert(dimensions[0] < std::numeric_limits<int>::max());
+	assert(dimensions[1] < std::numeric_limits<int>::max());
+
 	auto table = util::table_2D<T, false>::create(
-		0, 1, dimensions[0],
-		0, 1, dimensions[1]);
+		0, 1, int(dimensions[0]),
+		0, 1, int(dimensions[1]));
 	H5Dread(dataset, H5_mem_type<T>(),
 		H5S_ALL, H5S_ALL, H5P_DEFAULT, table.data());
 
@@ -267,10 +273,14 @@ util::table_3D<T, false> hdf5_file::fill_table3D(std::string const & dataset_nam
 		throw std::runtime_error("Could not read table '" + dataset_name + '\'');
 
 	std::array<hsize_t, 3> dimensions = get_size<3>(dataset);
+	assert(dimensions[0] < std::numeric_limits<int>::max());
+	assert(dimensions[1] < std::numeric_limits<int>::max());
+	assert(dimensions[2] < std::numeric_limits<int>::max());
+
 	auto table = util::table_3D<T, false>::create(
-		0, 1, dimensions[0],
-		0, 1, dimensions[1],
-		0, 1, dimensions[2]);
+		0, 1, int(dimensions[0]),
+		0, 1, int(dimensions[1]),
+		0, 1, int(dimensions[2]));
 	H5Dread(dataset, H5_mem_type<T>(),
 		H5S_ALL, H5S_ALL, H5P_DEFAULT, table.data());
 
@@ -295,7 +305,7 @@ util::linspace<units::quantity<double>> hdf5_file::get_lin_dimscale(
 		return util::linspace<units::quantity<double>>(0*units::dimensionless, 1*units::dimensionless, N_expected);
 
 	// Verify that the size is correct
-	if (dimscale_data.first.size() != N_expected)
+	if (dimscale_data.first.size() != (size_t)N_expected)
 		throw std::runtime_error("Dimension scale has unexpected size.");
 
 	// Verify that the spacing is actually linear
@@ -328,7 +338,7 @@ util::geomspace<units::quantity<double>> hdf5_file::get_log_dimscale(
 	auto dimscale_data = get_dimscale(dataset, dim, parser);
 
 	// Verify that the size is correct
-	if (dimscale_data.first.size() != N_expected)
+	if (dimscale_data.first.size() != (size_t)N_expected)
 		throw std::runtime_error("Dimension scale has unexpected size.");
 
 	// Verify that the spacing is actually logarithmic

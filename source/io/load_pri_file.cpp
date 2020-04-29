@@ -3,6 +3,7 @@
 #include <numeric>
 #include <fstream>
 #include <iostream>
+#include <random>
 
 namespace nbl {
 

@@ -95,18 +95,20 @@ PHYSICS intersect_event octree<gpu_flag>::propagate(vec3 start, vec3 direction, 
 
 		// find intersection times with each orthogonal plane of the leaf's bounding box,
 		// then see which plane is reached first.
-		const vec3 t = AABB_intersect(current_position, direction, { AABB.x, AABB.y, AABB.z }, AABB.w*_AABB_halfsize);
-		if ((t.x < t.y) && (t.x < t.z)) {
-			intersect = t.x;
-			target = -1;
-		}
-		else if ((t.y < t.x) && (t.y < t.z)) {
-			intersect = t.y;
-			target = -2;
-		}
-		else {
-			intersect = t.z;
-			target = -4;
+		{
+			const vec3 t = AABB_intersect(current_position, direction, { AABB.x, AABB.y, AABB.z }, AABB.w * _AABB_halfsize);
+			if ((t.x < t.y) && (t.x < t.z)) {
+				intersect = t.x;
+				target = -1;
+			}
+			else if ((t.y < t.x) && (t.y < t.z)) {
+				intersect = t.y;
+				target = -2;
+			}
+			else {
+				intersect = t.z;
+				target = -4;
+			}
 		}
 
 
@@ -132,7 +134,7 @@ PHYSICS intersect_event octree<gpu_flag>::propagate(vec3 start, vec3 direction, 
 			// if the outgoing material is the same as current, nothing happens
 			// if the triangle represents a detector which can't see the current
 			// particle, nothing happens
-			if ((mat_idx_out == ignore_material))// || (mat_idx_out == triangle::NOP))
+			if (mat_idx_out == ignore_material)
 				continue;
 
 			// compute the intersection with the triangle; keep it if it
@@ -231,7 +233,7 @@ PHYSICS int octree<gpu_flag>::clz(uint64_t x)
 #elif defined __GNUC__
 	return __builtin_clzll(x);
 #elif defined(_MSC_VER)
-	return __lzcnt64(x);
+	return (int)__lzcnt64(x);
 #else
 	static_assert(0, "No clz implementation for your platform!");
 #endif

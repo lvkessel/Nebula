@@ -226,9 +226,9 @@ public:
 	 * \param num   Number of values in the range
 	 */
 	linspace(value_type start, value_type stop, size_type num) :
+		base_t(num),
 		first(start),
-		step((stop-start)/(num-1)),
-		base_t(num)
+		step((stop-start)/(num-1))
 	{}
 
 	/// Read-only access first value
@@ -286,9 +286,9 @@ public:
 	 * \param num   Number of values in the range
 	 */
 	geomspace(value_type start, value_type stop, size_type num) :
+		base_t(num),
 		first(start),
-		step(std::log(stop/start) / (num - 1)),
-		base_t(num)
+		step(std::log(stop/start) / (num - 1))
 	{}
 
 	/// Read-only access first value

@@ -61,7 +61,7 @@ public:
 
 			const particle after = this->_particles[particle_idx];
 			if (track && before.kin_energy != after.kin_energy)
-				deposit_function(before, after,
+				function(before, after,
 					this->_particles.get_primary_tag(particle_idx));
 		}
 	}

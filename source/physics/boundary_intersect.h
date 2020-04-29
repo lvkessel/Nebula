@@ -93,6 +93,8 @@ struct boundary_intersect
 			this_particle.dir = normalised_dir - 2*last_triangle_normal*cos_theta;
 			particle_mgr[particle_idx] = this_particle;
 			return;
+		case material_manager::NOP:
+			return;
 		default:
 			break;
 		}

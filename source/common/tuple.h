@@ -119,7 +119,7 @@ namespace detail
 		for_each_impl<i - 1>(tup, fun);
 	}
 	template<size_t i, typename T, typename F>
-	inline PHYSICS typename std::enable_if<i == 0, void>::type for_each_impl(T const & tup, F& fun)
+	inline PHYSICS typename std::enable_if<i == 0, void>::type for_each_impl(T const &, F&)
 	{}
 
 
@@ -131,7 +131,7 @@ namespace detail
 		else visit_at_impl<i - 1>(tup, idx, fun);
 	}
 	template<size_t i, typename T, typename F>
-	inline PHYSICS typename std::enable_if<i == 0, void>::type visit_at_impl(T const & tup, size_t idx, F& fun)
+	inline PHYSICS typename std::enable_if<i == 0, void>::type visit_at_impl(T const &, size_t, F&)
 	{}
 }
 

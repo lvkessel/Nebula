@@ -66,12 +66,12 @@ struct worker_data
 
 	time_log& timer;
 
-	size_t prescan_size;
+	uint32_t prescan_size;
 	real batch_factor;
 
-	size_t capacity;
-	size_t frame_size;
-	size_t batch_size;
+	uint32_t capacity;
+	uint32_t frame_size;
+	uint32_t batch_size;
 	real energy_threshold;
 
 	std::vector<uint32_t> running_count;
@@ -159,19 +159,19 @@ void worker_thread(worker_data& data,
 
 		// Find frame_size and batch_size based on the prescan stats.
 		// frame_size is the iteration number where running_count was maximal.
-		const size_t frame_size = 1 + std::distance(prescan_stats.begin(),
+		const uint32_t frame_size = 1 + (uint32_t)std::distance(prescan_stats.begin(),
 			std::max_element(prescan_stats.begin(), prescan_stats.end(),
 			[](std::pair<uint32_t, uint32_t> p1, std::pair<uint32_t, uint32_t> p2) -> bool
 			{ return p1.first < p2.first; }));
 		// Batch size
-		size_t batch_size;
+		uint32_t batch_size;
 		{
 			real accumulator = 0;
-			for (size_t i = 2*frame_size; i < prescan_stats.size(); i += frame_size)
+			for (uint32_t i = 2*frame_size; i < prescan_stats.size(); i += frame_size)
 				accumulator += prescan_stats[i].first / real(data.prescan_size);
 			accumulator += 2*prescan_stats[frame_size].first / real(data.prescan_size);
 			accumulator += 2*prescan_stats[frame_size].second / real(data.prescan_size);
-			batch_size = size_t(data.batch_factor*data.capacity / accumulator);
+			batch_size = uint32_t(data.batch_factor*data.capacity / accumulator);
 		}
 		std::clog << "\nframe_size = " << frame_size << " | batch_size = " << batch_size << std::endl;
 
@@ -253,8 +253,8 @@ int main(int argc, char** argv)
 	p.add_option("sort-primaries", "Sort primary electrons before simulation", false);
 	p.parse(argc, argv);
 	const real energy_threshold = p.get_flag<real>("energy-threshold");
-	const size_t capacity = p.get_flag<size_t>("capacity");
-	const size_t prescan_size = p.get_flag<size_t>("prescan-size");
+	const uint32_t capacity = p.get_flag<uint32_t>("capacity");
+	const uint32_t prescan_size = p.get_flag<uint32_t>("prescan-size");
 	const real batch_factor = p.get_flag<real>("batch-factor");
 	const unsigned int seed = p.get_flag<unsigned int>("seed");
 	const bool sort_primaries = p.get_flag<bool>("sort-primaries");
@@ -321,13 +321,13 @@ int main(int argc, char** argv)
 				max_material = tri.material_out;
 		}
 
-		if (max_material > pos_flags.size()-3)
+		if (max_material > int(pos_flags.size())-3)
 		{
 			std::clog << "Error: not enough materials provided for this geometry!\n"
 				"  Expected " << (max_material+1) << " materials, " << (pos_flags.size()-2) << " provided.\n";
 			return 1;
 		}
-		if (max_material < pos_flags.size()-3)
+		if (max_material < int(pos_flags.size())-3)
 		{
 			std::clog << "Warning: too many materials provided for this geometry!\n"
 				"  Expected " << (max_material+1) << " materials, " << (pos_flags.size()-2) << " provided.\n";

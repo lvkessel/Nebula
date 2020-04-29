@@ -106,13 +106,13 @@ int main(int argc, char** argv)
 				max_material = tri.material_out;
 		}
 
-		if (max_material > pos_flags.size()-3)
+		if (max_material > int(pos_flags.size())-3)
 		{
 			std::clog << "Error: not enough materials provided for this geometry!\n"
 				"  Expected " << (max_material+1) << " materials, " << (pos_flags.size()-2) << " provided.\n";
 			return 1;
 		}
-		if (max_material < pos_flags.size()-3)
+		if (max_material < int(pos_flags.size())-3)
 		{
 			std::clog << "Warning: too many materials provided for this geometry!\n"
 				"  Expected " << (max_material+1) << " materials, " << (pos_flags.size()-2) << " provided.\n";
@@ -172,7 +172,7 @@ int main(int argc, char** argv)
 
 	// Simulation loop
 	auto sim_loop = [&pool, &detect_out, &deposit_out, &pixels,
-			&geometry, &inter, &materials, energy_threshold](uint64_t seed)
+			&geometry, &inter, &materials, energy_threshold](uint32_t seed)
 	{
 		driver d(geometry, inter, materials, energy_threshold, seed);
 		output_buffer detect_buff(detect_out,
@@ -188,7 +188,7 @@ int main(int argc, char** argv)
 			if (std::get<2>(work_data) == 0)
 				break;
 
-			auto particles_pushed = d.push(
+			d.push(
 				std::get<0>(work_data),  // particle*
 				std::get<1>(work_data),  // tag*
 				std::get<2>(work_data)); // number

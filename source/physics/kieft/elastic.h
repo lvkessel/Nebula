@@ -129,11 +129,11 @@ public:
 			el._log_imfp_table = mat.fill_table1D<real>("/elastic/imfp");
 			auto K_range = mat.get_log_dimscale("/elastic/imfp", 0, el._log_imfp_table.width());
 			el._log_imfp_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV));
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV));
 			el._log_imfp_table.mem_scope([&](real* imfp_vector)
 			{
-				const real unit = mat.get_unit("/elastic/imfp") * units::nm;
-				for (int x = 0; x < K_range.size(); ++x)
+				const real unit = real(mat.get_unit("/elastic/imfp") * units::nm);
+				for (size_t x = 0; x < K_range.size(); ++x)
 				{
 					imfp_vector[x] = std::log(imfp_vector[x] * unit);
 				}
@@ -145,12 +145,12 @@ public:
 			auto K_range = mat.get_log_dimscale("/elastic/costheta_icdf", 0, el._icdf_table.width());
 			auto P_range = mat.get_lin_dimscale("/elastic/costheta_icdf", 1, el._icdf_table.height());
 			el._icdf_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
-				P_range.front(), P_range.back());
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV),
+				(real)P_range.front(), (real)P_range.back());
 			el._icdf_table.mem_scope([&](real** icdf_vector)
 			{
-				for (int x = 0; x < K_range.size(); ++x)
-				for (int y = 0; y < P_range.size(); ++y)
+				for (size_t x = 0; x < K_range.size(); ++x)
+				for (size_t y = 0; y < P_range.size(); ++y)
 				{
 					icdf_vector[x][y] = std::max(-1._r, std::min(1._r, icdf_vector[x][y]));
 				}

@@ -306,11 +306,11 @@ public:
 			inel._log_imfp_table = mat.fill_table1D<real>("/full_penn/imfp");
 			auto K_range = mat.get_log_dimscale("/full_penn/imfp", 0, inel._log_imfp_table.width());
 			inel._log_imfp_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV));
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV));
 			inel._log_imfp_table.mem_scope([&](real* imfp_vector)
 			{
-				const real unit = mat.get_unit("/full_penn/imfp") * units::nm;
-				for (int x = 0; x < K_range.size(); ++x)
+				const real unit = real(mat.get_unit("/full_penn/imfp") * units::nm);
+				for (size_t x = 0; x < K_range.size(); ++x)
 				{
 					imfp_vector[x] = std::log(imfp_vector[x] * unit);
 				}
@@ -324,16 +324,16 @@ public:
 			auto P_range = mat.get_lin_dimscale("/full_penn/omega_icdf", 1,
 				inel._log_omega_icdf_table.height());
 			inel._log_omega_icdf_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
-				P_range.front(), P_range.back());
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV),
+				(real)P_range.front(), (real)P_range.back());
 			inel._log_omega_icdf_table.mem_scope([&](real** icdf_vector)
 			{
-				const real unit = mat.get_unit("/full_penn/omega_icdf") / units::eV;
+				const real unit = real(mat.get_unit("/full_penn/omega_icdf") / units::eV);
 				const auto fermi = mat.get_property_quantity("fermi");
-				for (int x = 0; x < K_range.size(); ++x)
+				for (size_t x = 0; x < K_range.size(); ++x)
 				{
 					auto K = K_range[x];
-					for (int y = 0; y < P_range.size(); ++y)
+					for (size_t y = 0; y < P_range.size(); ++y)
 					{
 						icdf_vector[x][y] = (real)std::log(std::max(0.0, std::min<double>(
 							(K - fermi) / units::eV,
@@ -353,17 +353,17 @@ public:
 			auto P_range = mat.get_lin_dimscale("/full_penn/q_icdf", 2,
 				inel._q_icdf_table.depth());
 			inel._q_icdf_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
-				w_range.front(), w_range.back(),
-				P_range.front(), P_range.back());
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV),
+				(real)w_range.front(), (real)w_range.back(),
+				(real)P_range.front(), (real)P_range.back());
 			inel._q_icdf_table.mem_scope([&](real*** icdf_vector)
 			{
-				const real unit = mat.get_unit("/full_penn/q_icdf") * 0.19519 * units::nm;
-				for (int x = 0; x < K_range.size(); ++x)
-				for (int y = 0; y < w_range.size(); ++y)
-				for (int z = 0; z < P_range.size(); ++z)
+				// hbar / sqrt(2*electron mass) == 0.19519 nm eV^1/2
+				const real unit = real(mat.get_unit("/full_penn/q_icdf") * 0.19519 * units::nm);
+				for (size_t x = 0; x < K_range.size(); ++x)
+				for (size_t y = 0; y < w_range.size(); ++y)
+				for (size_t z = 0; z < P_range.size(); ++z)
 				{
-					// hbar / sqrt(2*electron mass) == 0.19519 nm eV^1/2
 					icdf_vector[x][y][z] = icdf_vector[x][y][z] * unit;
 				}
 			});
@@ -379,17 +379,17 @@ public:
 			auto P_range = mat.get_lin_dimscale("/ionization/binding_icdf", 2,
 				inel._ionisation_table.depth());
 			inel._ionisation_table.set_scale(
-				std::log(K_range.front()/units::eV), std::log(K_range.back()/units::eV),
-				std::log(omega_range.front()), std::log(omega_range.back()),
-				P_range.front(), P_range.back());
+				(real)std::log(K_range.front()/units::eV), (real)std::log(K_range.back()/units::eV),
+				(real)std::log(omega_range.front()), (real)std::log(omega_range.back()),
+				(real)P_range.front(), (real)P_range.back());
 			inel._ionisation_table.mem_scope([&](real*** icdf_vector)
 			{
-				const real unit = mat.get_unit("/ionization/binding_icdf") / units::eV;
-				for (int x = 0; x < K_range.size(); ++x)
+				const real unit = real(mat.get_unit("/ionization/binding_icdf") / units::eV);
+				for (size_t x = 0; x < K_range.size(); ++x)
 				{
-					for (int y = 0; y < omega_range.size(); ++y)
+					for (size_t y = 0; y < omega_range.size(); ++y)
 					{
-						for (int z = 0; z < P_range.size(); ++z)
+						for (size_t z = 0; z < P_range.size(); ++z)
 						{
 							real binding = icdf_vector[x][y][z] * unit;
 							if (binding < 50 || !std::isfinite(binding))

@@ -134,7 +134,7 @@ int octree_child::my_octant() const
 {
 	assert(_parent != nullptr);
 	assert(this - _parent->_children >= 0 && this - _parent->_children < 8);
-	return (this - _parent->_children);
+	return int(this - _parent->_children);
 }
 
 void octree_child::split(vec3 my_center, vec3 my_halfsize)
@@ -253,6 +253,9 @@ linearized_octree::linearized_octree(octree_root const & root) :
 	center(root.center),
 	halfsize(root.halfsize)
 {
+	if (root.triangles().size() > std::numeric_limits<int>::max())
+		throw std::runtime_error("Too many triangles for linearized octree.");
+
 	// Get a vector of all octree nodes.
 	// NOTE: because of the order in which we iterate, they are sorted by Morton order.
 	std::vector<octree_node const *> morton_nodes;
@@ -278,7 +281,7 @@ linearized_octree::linearized_octree(octree_root const & root) :
 
 
 	// Sort the triangles
-	std::vector<size_t> triangle_map(root._triangles.size()); // For an index in root.triangles, points to the corresponding position in triangle_data.
+	std::vector<int> triangle_map(root._triangles.size()); // For an index in root.triangles, points to the corresponding position in triangle_data.
 	{
 		triangle_data.reserve(root._triangles.size());
 
@@ -295,7 +298,7 @@ linearized_octree::linearized_octree(octree_root const & root) :
 					continue;
 
 				done[tri_idx] = true;
-				triangle_map[tri_idx] = triangle_data.size();
+				triangle_map[tri_idx] = int(triangle_data.size());
 				triangle_data.push_back(root._triangles[tri_idx]);
 			}
 		}
@@ -306,10 +309,10 @@ linearized_octree::linearized_octree(octree_root const & root) :
 
 
 	// Build linearized octree index table
-	std::map<const octree_node*, size_t> node_p_map; // map from node pointers to their start in octree_data
+	std::map<const octree_node*, int> node_p_map; // map from node pointers to their start in octree_data
 	for (auto this_node : morton_nodes)
 	{
-		node_p_map[this_node] = octree_data.size();
+		node_p_map[this_node] = int(octree_data.size());
 		if (this_node->is_leaf())
 		{
 			// Leaf? Add triangle indices, and -1 at the end.
@@ -342,6 +345,10 @@ linearized_octree::linearized_octree(octree_root const & root) :
 				octree_data[index+octant] *= -1;
 		}
 	}
+
+	// If this has happened, some of the indices in octree_data (which are ints) are invalid
+	if (octree_data.size() > std::numeric_limits<int>::max())
+		throw std::runtime_error("Octree is too large.");
 }
 
 vec3 linearized_octree::AABB_min() const
