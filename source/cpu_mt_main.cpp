@@ -81,7 +81,7 @@ int main(int argc, char** argv)
 	// Load geometry
 	std::clog << "Loading geometry..." << std::endl;
 	timer.start();
-	std::vector<triangle> triangles = load_tri_file(pos_flags[0]);
+	std::vector<triangle> triangles = nbl::load_tri_file(pos_flags[0]);
 	timer.stop("Loading triangles");
 
 	if (triangles.empty())
@@ -132,7 +132,7 @@ int main(int argc, char** argv)
 	std::clog << "Loading primary electrons..." << std::endl;
 	timer.start();
 	std::vector<particle> primaries; std::vector<int2> pixels;
-	std::tie(primaries, pixels) = load_pri_file(pos_flags[1], geometry.AABB_min(), geometry.AABB_max(), get_max_energy(materials));
+	std::tie(primaries, pixels) = nbl::load_pri_file(pos_flags[1], geometry.AABB_min(), geometry.AABB_max(), get_max_energy(materials));
 	timer.stop("Loading primary electrons");
 
 	if (primaries.empty())
