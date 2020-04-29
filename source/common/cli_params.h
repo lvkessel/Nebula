@@ -4,9 +4,10 @@
 /**
  * \brief Very simple command-line parameter parser.
  *
- * It can currently accept two types of arguments. Arugments of the form
- * `--key=value` (an arbitrary number of leading `-` is accepted) are called
- * "flags". Arguments that are not of that form are "positional arguments".
+ * Types of arguments supported are:
+ *  * `--key=value`
+ *  * `--key value`
+ *  * Anything that doesn't match this pattern are "positional arguments".
  */
 
 #include <string>
@@ -19,6 +20,30 @@ class cli_params
 public:
 	/**
 	 * \brief Constructor.
+	 *
+	 * \param param_string String to be printed for the documentation listing.
+	 */
+	cli_params(std::string const & param_string = "[options]")
+		: param_string(param_string)
+	{}
+
+	/**
+	 * \brief Add key-value option pair.
+	 */
+	template<typename T>
+	void add_option(
+		std::string const & key,
+		std::string const & description,
+		T const & default_value)
+	{
+		std::stringstream def;
+		def << default_value;
+		options[key] = { description, def.str() };
+	}
+
+	/**
+	 * \brief Parse command-line options.
+	 *
 	 * Parameters are the same as what you get in the C++ `main()` function.
 	 *
 	 * This function parses the arguments and stores them in private variables.
@@ -26,32 +51,54 @@ public:
 	 * \param argc Number of command-line arguments.
 	 * \param argv The command-line arguments themselves.
 	 */
-	cli_params(int argc, char** argv)
+	void parse(int argc, char**argv)
 	{
 		program_name = argv[0];
 		for (int i = 1; i < argc; ++i)
 		{
 			std::string item = argv[i];
-			if (item[0] == '-')
+			if (item[0] == '-' && item[1] == '-')
 			{
-				size_t key_start = item.find_first_not_of('-');
-				size_t split = item.find("=", key_start);
-				std::string key = item.substr(key_start, split-key_start);
-				std::string value = item.substr(split+1);
+				std::string key;
+				std::string value;
 
-				if (value.find('=') != std::string::npos)
-					throw std::runtime_error("Two '=' found in " + item);
+				auto split = item.find("=", 2);
+				if (split == std::string::npos)
+				{
+					key = item.substr(2, item.size()-2);
+					value = (++i < argc ? argv[i] : "");
+					if (value == "=")
+						value = (++i < argc ? argv[i] : "");
+				}
+				else
+				{
+					key = item.substr(2, split-2);
+					value = item.substr(split+1);
+				}
 
-				auto map_it = flags.find(key);
-				if (map_it != flags.end())
-					throw std::runtime_error("Key '" + key + "' appears twice in options list");
-
-				flags.insert(map_it, { key, value });
+				auto map_it = options.find(key);
+				if (map_it == options.end())
+					throw std::runtime_error("Unexpected key '" + key + "'");
+				map_it->second.value = value;
 			}
 			else
 			{
 				positional.push_back(item);
 			}
+		}
+	}
+
+	/**
+	 * \brief Print documentation string
+	 */
+	void print_usage(std::ostream & out)
+	{
+		out << "Usage: " << program_name << " " << param_string << "\n"
+			<< "Options:\n";
+		for (auto const & opt : options)
+		{
+			out << "\t--" << opt.first << ": " << opt.second.description
+				<< " [" << opt.second.value << "]\n";
 		}
 	}
 
@@ -64,6 +111,17 @@ public:
 	}
 
 	/**
+	 * \brief Get a flag.
+	 *
+	 * \param key Flag name
+	 */
+	template<typename T>
+	T get_flag(std::string const & key) const
+	{
+		return options.at(key).get_as<T>();
+	}
+
+	/**
 	 * \brief Get the positional arguments (in the correct order).
 	 *
 	 * The "positional" arguments are arguments that don't follow the --key=value format.
@@ -73,28 +131,24 @@ public:
 		return positional;
 	}
 
-	/**
-	 * \brief Get an optional flag.
-	 *
-	 * If the flag designated by `key` was found, fill `value` with the correct
-	 * value; otherwise, `value` is left untouched.
-	 *
-	 * \param[in]  key   Flag name
-	 * \param[out] value Variable to store the parameter in
-	 */
-	template<typename T>
-	void get_optional_flag(std::string const & key, T& value) const
-	{
-		auto map_it = flags.find(key);
-		if (map_it != flags.end())
-		{
-			std::stringstream(map_it->second) >> value;
-		}
-	}
-
 private:
+	struct option
+	{
+		std::string description;
+		std::string value;
+
+		template<typename T>
+		T get_as() const
+		{
+			T ret;
+			std::stringstream(value) >> ret;
+			return ret;
+		}
+	};
+
 	std::string program_name;
-	std::map<std::string, std::string> flags;
+	std::string param_string;
+	std::map<std::string, option> options;
 	std::vector<std::string> positional;
 };
 

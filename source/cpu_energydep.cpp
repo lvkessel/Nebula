@@ -57,26 +57,18 @@ int main(int argc, char** argv)
 	intersect_t::print_info(std::clog);
 	std::clog << "\n" << std::string(80, '-') << "\n\n";
 
-
 	// Settings
-	real energy_threshold = 0;
-	typename driver::seed_t seed = 0x14f8214e78c7e39b;
-	std::string detect_filename = "detected.bin";
-	std::string deposit_filename = "stdout";
+	cli_params p("[options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]");
+	p.add_option("energy-threshold", "Lowest energy to simulate", 0);
+	p.add_option("seed", "Random seed", 0x78c7e39b);
+	p.add_option("detect-filename", "Filename for detected electrons", "detected.bin");
+	p.add_option("deposit-filename", "Filename for energy deposits", "stdout");
+	p.parse(argc, argv);
+	const real energy_threshold = p.get_flag<real>("energy-threshold");
+	const unsigned int seed = p.get_flag<unsigned int>("seed");
+	const std::string detect_filename = p.get_flag<std::string>("detect-filename");
+	const std::string deposit_filename = p.get_flag<std::string>("deposit-filename");
 
-	cli_params p(argc, argv);
-	p.get_optional_flag("energy-threshold", energy_threshold);
-	p.get_optional_flag("seed", seed);
-	p.get_optional_flag("detect-filename", detect_filename);
-	p.get_optional_flag("deposit-filename", deposit_filename);
-
-	const std::string usage("Usage: " + p.get_program_name() +
-		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n"
-		"Options:\n"
-		"\t--energy-threshold [0]\n"
-		"\t--seed             [0x14f8214e78c7e39b]\n"
-		"\t--detect-filename  [detected.bin]\n"
-		"\t--deposit-filename [stdout]\n");
 
 	// Setup time logging
 	time_log timer;
@@ -85,7 +77,7 @@ int main(int argc, char** argv)
 	std::vector<std::string> pos_flags = p.get_positional();
 	if (pos_flags.size() < 3)
 	{
-		std::clog << usage << std::endl;
+		p.print_usage(std::clog);
 		return 1;
 	}
 
@@ -99,7 +91,8 @@ int main(int argc, char** argv)
 
 	if (triangles.empty())
 	{
-		std::clog << "Error: could not load triangles!\n" << usage << std::endl;
+		std::clog << "Error: could not load triangles!\n";
+		p.print_usage(std::clog);
 		return 1;
 	}
 	// Sanity check with number of materials
@@ -149,7 +142,8 @@ int main(int argc, char** argv)
 
 	if (primaries.empty())
 	{
-		std::clog << "Error: could not load primary electrons!\n" << usage << std::endl;
+		std::clog << "Error: could not load primary electrons!\n";
+		p.print_usage(std::clog);
 		return 1;
 	}
 

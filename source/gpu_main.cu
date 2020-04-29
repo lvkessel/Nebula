@@ -244,30 +244,20 @@ int main(int argc, char** argv)
 
 
 	// Settings
-	real energy_threshold = 0;
-	size_t capacity = 1000000;
-	size_t prescan_size = 1000;
-	real batch_factor = .9_r;
-	typename driver::seed_t seed = 0x14f8214e78c7e39b;
-	bool sort_primaries = false;
-
-	cli_params p(argc, argv);
-	p.get_optional_flag("energy-threshold", energy_threshold);
-	p.get_optional_flag("capacity", capacity);
-	p.get_optional_flag("prescan-size", prescan_size);
-	p.get_optional_flag("batch-factor", batch_factor);
-	p.get_optional_flag("seed", seed);
-	p.get_optional_flag("sort-primaries", sort_primaries);
-
-	const std::string usage("Usage: " + p.get_program_name() +
-		" [options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]\n"
-		"Options:\n"
-		"\t--energy-threshold [0]\n"
-		"\t--capacity         [1000000]\n"
-		"\t--prescan-size     [1000]\n"
-		"\t--batch-factor     [0.9]\n"
-		"\t--seed             [0x14f8214e78c7e39b]\n"
-		"\t--sort-primaries   [0]\n");
+	cli_params p("[options] <geometry.tri> <primaries.pri> [material0.mat] .. [materialN.mat]");
+	p.add_option("energy-threshold", "Lowest energy to simulate", 0);
+	p.add_option("capacity", "Electron capacity on the GPU", 1000000);
+	p.add_option("prescan-size", "Number of electrons to use for prescan", 1000);
+	p.add_option("batch-factor", "Multiplication factor for electron batch size", 0.9);
+	p.add_option("seed", "Random seed", 0x78c7e39b);
+	p.add_option("sort-primaries", "Sort primary electrons before simulation", false);
+	p.parse(argc, argv);
+	const real energy_threshold = p.get_flag<real>("energy-threshold");
+	const size_t capacity = p.get_flag<size_t>("capacity");
+	const size_t prescan_size = p.get_flag<size_t>("prescan-size");
+	const real batch_factor = p.get_flag<real>("batch-factor");
+	const unsigned int seed = p.get_flag<unsigned int>("seed");
+	const bool sort_primaries = p.get_flag<bool>("sort-primaries");
 
 	// Setup time logging
 	time_log timer;
@@ -276,7 +266,7 @@ int main(int argc, char** argv)
 	std::vector<std::string> pos_flags = p.get_positional();
 	if (pos_flags.size() < 3 || capacity <= 0 || prescan_size <= 0 || batch_factor <= 0)
 	{
-		std::clog << usage << std::endl;
+		p.print_usage(std::clog);
 		return 1;
 	}
 
@@ -316,7 +306,8 @@ int main(int argc, char** argv)
 
 	if (triangles.empty())
 	{
-		std::clog << "Error: could not load triangles!\n" << usage << std::endl;
+		std::clog << "Error: could not load triangles!\n";
+		p.print_usage(std::clog);
 		return 1;
 	}
 	// Sanity check with number of materials
@@ -381,7 +372,8 @@ int main(int argc, char** argv)
 
 	if (primaries.empty())
 	{
-		std::clog << "Error: could not load primary electrons!\n" << usage << std::endl;
+		std::clog << "Error: could not load primary electrons!\n";
+		p.print_usage(std::clog);
 		return 1;
 	}
 
